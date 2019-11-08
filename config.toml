@@ -1,0 +1,7 @@
+
+node_num = 100
+speedup_rate = 1000
+
+[log]
+  level = trace
+  log_dir = "log"

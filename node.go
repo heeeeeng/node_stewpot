@@ -1,15 +1,21 @@
 package main
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
-// TODO
-// Node config
+var (
+	DefaultDelay = 100
+)
 
 type Node struct {
+	SpeedRate int
+
 	IP        string
-	Bandwidth bandwidth
-	Protocol  Protocol
-	Loc       Location
+	Bandwidth Bandwidth
+	//Protocol  Protocol
+	Loc Location
 
 	peers      map[string]*Peer
 	peerNumIn  int
@@ -23,16 +29,30 @@ type Node struct {
 	mu sync.RWMutex
 }
 
-type bandwidth struct {
-	upload   int
-	download int
+type Bandwidth struct {
+	Upload   int
+	Download int
 }
 
-func NewNode() *Node {
-	// TODO
-	// config
+type NodeConfig struct {
+	IP       string
+	Upload   int
+	Download int
+	MaxIn    int
+	MaxOut   int
+}
 
+func NewNode(rate int, config NodeConfig, loc Location) *Node {
 	n := &Node{}
+	n.SpeedRate = rate
+
+	n.IP = config.IP
+	n.Bandwidth = Bandwidth{Upload: config.Upload, Download: config.Download}
+	n.Loc = loc
+	n.peers = make(map[string]*Peer)
+	n.maxIn = config.MaxIn
+	n.maxOut = config.MaxOut
+	//n.Protocol = protocol
 
 	receiver := make(chan NodeMsg)
 	n.receiver = receiver
@@ -43,65 +63,106 @@ func NewNode() *Node {
 	return n
 }
 
+func (n *Node) Start() {
+	go n.loop()
+}
+
 func (n *Node) Close() {
 	close(n.close)
 }
 
-func (n *Node) ConnOut(ip string, timeout int, recvC, sendC chan []byte) {
+func (n *Node) ConnOut(remoteNode *Node, timeout int, recvC, sendC chan PureMsg) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	if n.peers[ip] != nil {
-		return
+	if n.peers[remoteNode.IP] != nil {
+		return fmt.Errorf("peer [%s] already exists", remoteNode.IP)
 	}
 	if n.peerNumOut == n.maxOut {
-		return
+		return fmt.Errorf("max connect out peers")
 	}
 
-	p := NewPeer(ip, true, timeout, recvC, sendC)
-	n.peers[ip] = p
+	delay := n.getDelay(remoteNode.Loc)
+	bw := n.minBandwidth(remoteNode)
+	pkgLoss := 0
+
+	p := NewPeer(n.SpeedRate, n.IP, remoteNode.IP, true, timeout, delay, bw, pkgLoss, recvC, sendC)
+	go p.ReceiveMsg(n.receiver)
+
+	n.peers[remoteNode.IP] = p
 	n.peerNumOut++
 
-	go p.ReceiveMsg(n.receiver)
+	return nil
 }
 
-func (n *Node) ConnIn(ip string, timeout int, recvC, sendC chan []byte) {
+func (n *Node) ConnIn(remoteNode *Node, timeout int, recvC, sendC chan PureMsg) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	if n.peers[ip] != nil {
-		return
+	if n.peers[remoteNode.IP] != nil {
+		return fmt.Errorf("peer [%s] already exists", remoteNode.IP)
 	}
 	if n.peerNumIn == n.maxIn {
-		return
+		return fmt.Errorf("max connect in peers")
 	}
 
-	p := NewPeer(ip, false, timeout, recvC, sendC)
-	n.peers[ip] = p
+	delay := n.getDelay(remoteNode.Loc)
+	bw := n.minBandwidth(remoteNode)
+	pkgLoss := 0
+
+	p := NewPeer(n.SpeedRate, n.IP, remoteNode.IP, false, timeout, delay, bw, pkgLoss, recvC, sendC)
+	go p.ReceiveMsg(n.receiver)
+
+	n.peers[remoteNode.IP] = p
 	n.peerNumIn++
 
-	go p.ReceiveMsg(n.receiver)
+	return nil
 }
 
-func (n *Node) BroadcastMsg(msg []byte) {
+func (n *Node) BroadcastMsg(msg PureMsg) {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 
 	n.broadcastMsg(msg)
 }
 
-func (n *Node) broadcastMsg(msg []byte) {
+func (n *Node) broadcastMsg(msg PureMsg) {
 	for _, peer := range n.peers {
 		go peer.SendMsg(msg)
 	}
 }
 
+func (n *Node) getDelay(loc Location) int {
+	if delay, ok := n.Loc.Delays[loc.Name]; ok {
+		return delay
+	}
+	return DefaultDelay
+}
+
+func (n *Node) minBandwidth(rn *Node) int {
+	min := n.Bandwidth.Upload
+	if n.Bandwidth.Download < min {
+		min = n.Bandwidth.Download
+	}
+	if rn.Bandwidth.Upload < min {
+		min = rn.Bandwidth.Upload
+	}
+	if rn.Bandwidth.Download < min {
+		min = rn.Bandwidth.Download
+	}
+	return min
+}
+
 func (n *Node) loop() {
 	for {
 		select {
-		case nodeMsg := <-n.receiver:
-			// TODO
-			// deal with node
+		case <-n.receiver:
+		//case nodeMsg := <-n.receiver:
+		// TODO
+		// deal with node
+
+		//msg := nodeMsg.Data
+		//fmt.Println(fmt.Sprintf("node 【 %s 】 receive msg id: %d", n.IP, msg.ID))
 
 		case <-n.close:
 			for _, p := range n.peers {
@@ -115,5 +176,17 @@ func (n *Node) loop() {
 type NodeMsg struct {
 	IP        string
 	Timestamp int64
-	Data      []byte
+	Data      PureMsg
+}
+
+//func (m *NodeMsg) Decode() *PureMsg {
+//	id := BytesToInt64(m.Data[:8])
+//	data := m.Data[8:]
+//
+//	return &PureMsg{ID: id, Data: data}
+//}
+
+type PureMsg struct {
+	ID   int
+	Data int
 }
