@@ -2,13 +2,13 @@ package main
 
 type Location struct {
 	Name   string
-	Delays map[string]int
+	Delays map[string]int64
 }
 
 var (
 	LocCN = Location{
 		Name: "CN",
-		Delays: map[string]int{
+		Delays: map[string]int64{
 			"CN":  50,
 			"NA":  500,
 			"EU":  300,
@@ -19,7 +19,7 @@ var (
 	}
 	LocNA = Location{
 		Name: "NA",
-		Delays: map[string]int{
+		Delays: map[string]int64{
 			"CN":  500,
 			"NA":  50,
 			"EU":  200,
@@ -30,7 +30,7 @@ var (
 	}
 	LocEU = Location{
 		Name: "EU",
-		Delays: map[string]int{
+		Delays: map[string]int64{
 			"CN":  300,
 			"NA":  200,
 			"EU":  50,
@@ -41,7 +41,7 @@ var (
 	}
 	LocRU = Location{
 		Name: "RU",
-		Delays: map[string]int{
+		Delays: map[string]int64{
 			"CN":  150,
 			"NA":  400,
 			"EU":  200,
@@ -52,7 +52,7 @@ var (
 	}
 	LocSEA = Location{
 		Name: "SEA",
-		Delays: map[string]int{
+		Delays: map[string]int64{
 			"CN":  100,
 			"NA":  300,
 			"EU":  200,
@@ -63,7 +63,7 @@ var (
 	}
 	LocJP = Location{
 		Name: "JP",
-		Delays: map[string]int{
+		Delays: map[string]int64{
 			"CN":  100,
 			"NA":  200,
 			"EU":  200,

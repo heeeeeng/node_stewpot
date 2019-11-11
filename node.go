@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	DefaultDelay = 100
+	DefaultDelay int64 = 100
 )
 
 type Node struct {
@@ -14,8 +14,7 @@ type Node struct {
 
 	IP        string
 	Bandwidth Bandwidth
-	//Protocol  Protocol
-	Loc Location
+	Loc       Location
 
 	peers      map[string]*Peer
 	peerNumIn  int
@@ -63,15 +62,15 @@ func NewNode(rate int, config NodeConfig, loc Location) *Node {
 	return n
 }
 
-func (n *Node) Start() {
-	go n.loop()
-}
+//func (n *Node) Start() {
+//	go n.loop()
+//}
 
 func (n *Node) Close() {
 	close(n.close)
 }
 
-func (n *Node) ConnOut(remoteNode *Node, timeout int, recvC, sendC chan PureMsg) error {
+func (n *Node) ConnOut(remoteNode *Node, timeout int) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
@@ -82,12 +81,12 @@ func (n *Node) ConnOut(remoteNode *Node, timeout int, recvC, sendC chan PureMsg)
 		return fmt.Errorf("max connect out peers")
 	}
 
-	delay := n.getDelay(remoteNode.Loc)
+	delay := n.GetDelay(remoteNode)
 	bw := n.minBandwidth(remoteNode)
 	pkgLoss := 0
 
-	p := NewPeer(n.SpeedRate, n.IP, remoteNode.IP, true, timeout, delay, bw, pkgLoss, recvC, sendC)
-	go p.ReceiveMsg(n.receiver)
+	p := NewPeer(n.SpeedRate, n.IP, remoteNode.IP, true, timeout, delay, bw, pkgLoss)
+	//go p.ReceiveMsg(n.receiver)
 
 	n.peers[remoteNode.IP] = p
 	n.peerNumOut++
@@ -95,7 +94,7 @@ func (n *Node) ConnOut(remoteNode *Node, timeout int, recvC, sendC chan PureMsg)
 	return nil
 }
 
-func (n *Node) ConnIn(remoteNode *Node, timeout int, recvC, sendC chan PureMsg) error {
+func (n *Node) ConnIn(remoteNode *Node, timeout int) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
@@ -106,12 +105,12 @@ func (n *Node) ConnIn(remoteNode *Node, timeout int, recvC, sendC chan PureMsg) 
 		return fmt.Errorf("max connect in peers")
 	}
 
-	delay := n.getDelay(remoteNode.Loc)
+	delay := n.GetDelay(remoteNode)
 	bw := n.minBandwidth(remoteNode)
 	pkgLoss := 0
 
-	p := NewPeer(n.SpeedRate, n.IP, remoteNode.IP, false, timeout, delay, bw, pkgLoss, recvC, sendC)
-	go p.ReceiveMsg(n.receiver)
+	p := NewPeer(n.SpeedRate, n.IP, remoteNode.IP, false, timeout, delay, bw, pkgLoss)
+	//go p.ReceiveMsg(n.receiver)
 
 	n.peers[remoteNode.IP] = p
 	n.peerNumIn++
@@ -119,21 +118,21 @@ func (n *Node) ConnIn(remoteNode *Node, timeout int, recvC, sendC chan PureMsg) 
 	return nil
 }
 
-func (n *Node) BroadcastMsg(msg PureMsg) {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
+//func (n *Node) BroadcastMsg(msg PureMsg) {
+//	n.mu.RLock()
+//	defer n.mu.RUnlock()
+//
+//	n.broadcastMsg(msg)
+//}
+//
+//func (n *Node) broadcastMsg(msg PureMsg) {
+//	for _, peer := range n.peers {
+//		go peer.SendMsg(msg)
+//	}
+//}
 
-	n.broadcastMsg(msg)
-}
-
-func (n *Node) broadcastMsg(msg PureMsg) {
-	for _, peer := range n.peers {
-		go peer.SendMsg(msg)
-	}
-}
-
-func (n *Node) getDelay(loc Location) int {
-	if delay, ok := n.Loc.Delays[loc.Name]; ok {
+func (n *Node) GetDelay(remote *Node) int64 {
+	if delay, ok := n.Loc.Delays[remote.Loc.Name]; ok {
 		return delay
 	}
 	return DefaultDelay
@@ -153,25 +152,41 @@ func (n *Node) minBandwidth(rn *Node) int {
 	return min
 }
 
-func (n *Node) loop() {
-	for {
-		select {
-		case <-n.receiver:
-		//case nodeMsg := <-n.receiver:
-		// TODO
-		// deal with node
-
-		//msg := nodeMsg.Data
-		//fmt.Println(fmt.Sprintf("node 【 %s 】 receive msg id: %d", n.IP, msg.ID))
-
-		case <-n.close:
-			for _, p := range n.peers {
-				p.Close()
-			}
-			return
-		}
+func (n *Node) LockConn(remote string, endTime int64) {
+	peer := n.peers[remote]
+	if peer == nil {
+		return
 	}
+	peer.LockConn(endTime)
 }
+
+func (n *Node) ReleaseConn(remote string) {
+	peer := n.peers[remote]
+	if peer == nil {
+		return
+	}
+	peer.ReleaseConn()
+}
+
+//func (n *Node) loop() {
+//	for {
+//		select {
+//		case <-n.receiver:
+//		//case nodeMsg := <-n.receiver:
+//		// TODO
+//		// deal with node
+//
+//		//msg := nodeMsg.Data
+//		//fmt.Println(fmt.Sprintf("node 【 %s 】 receive msg id: %d", n.IP, msg.ID))
+//
+//		case <-n.close:
+//			for _, p := range n.peers {
+//				p.Close()
+//			}
+//			return
+//		}
+//	}
+//}
 
 type NodeMsg struct {
 	IP        string
