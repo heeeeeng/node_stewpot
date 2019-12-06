@@ -4,26 +4,19 @@ type Task interface {
 	Process(tl *Timeline)
 }
 
-type CPUCalculateTask struct {
-	startTime int64
-	node      *Node
-}
-
-func (t *CPUCalculateTask) Process(tl *Timeline) {
-
-}
-
 type MsgTransmitTask struct {
 	startTime int64
 	from      *Node
 	to        *Node
+	msg       Message
 }
 
-func newMsgTransmitTask(t int64, from, to *Node) *MsgTransmitTask {
+func newMsgTransmitTask(t int64, from, to *Node, msg Message) *MsgTransmitTask {
 	return &MsgTransmitTask{
 		startTime: t,
 		from:      from,
 		to:        to,
+		msg:       msg,
 	}
 }
 
@@ -31,18 +24,22 @@ func (t *MsgTransmitTask) Process(tl *Timeline) {
 	delay := t.from.GetDelay(t.to)
 	endtime := t.startTime + delay
 
-	lockTask := newConnLockTask(t.startTime, endtime, t.from, t.to)
-	tl.ImportTask(t.startTime, lockTask)
-
-	rlsTask := newConnReleaseTask(endtime, t.from, t.to)
-	tl.ImportTask(endtime, rlsTask)
+	recvTask := newConnRecvTask(endtime, t.from, t.to, t.msg)
+	tl.ImportTask(endtime, recvTask)
 }
 
 type BroadcastTask struct {
 	startTime int64
-	source    *Node
 	node      *Node
-	msg       int64
+	msg       Message
+}
+
+func newBroadcastTask(startTime int64, node *Node, msg Message) *BroadcastTask {
+	return &BroadcastTask{
+		startTime: startTime,
+		node:      node,
+		msg:       msg,
+	}
 }
 
 func (t *BroadcastTask) Process(tl *Timeline) {
@@ -51,60 +48,69 @@ func (t *BroadcastTask) Process(tl *Timeline) {
 	}
 
 	for _, p := range t.node.peers {
-		if t.source != nil && p.ipRemote == t.source.IP {
+		if t.msg.Source != nil && p.ipRemote == t.msg.Source.IP {
 			continue
 		}
-		task := newMsgTransmitTask(t.startTime, t.node, p.node)
+		msg := t.msg
+		msg.Source = t.node
+		task := newMsgTransmitTask(t.startTime, t.node, p.node, msg)
 		tl.ImportTask(t.startTime, task)
 	}
 }
 
-type MsgCheckTask struct {
+type MsgProcessTask struct {
 	startTime int64
+	initTime  int64
 	node      *Node
-	msg       int64
+	msg       Message
+	retryTime int64
 }
 
-func (t *MsgCheckTask) Process(tl *Timeline) {
-
-}
-
-type ConnLockTask struct {
-	startTime int64
-	endTime   int64
-	n1        *Node
-	n2        *Node
-}
-
-func newConnLockTask(t int64, endTime int64, n1, n2 *Node) *ConnLockTask {
-	return &ConnLockTask{
-		startTime: t,
-		endTime:   endTime,
-		n1:        n1,
-		n2:        n2,
+func newMsgProcessTask(startTime, initTime int64, n *Node, msg Message) *MsgProcessTask {
+	return &MsgProcessTask{
+		startTime: startTime,
+		initTime:  initTime,
+		node:      n,
+		msg:       msg,
+		retryTime: 10, // TODO cpu retry every 10ms if it is locked
 	}
 }
 
-func (t *ConnLockTask) Process(tl *Timeline) {
-	t.n1.LockConn(t.n2.IP, t.endTime)
-	t.n2.LockConn(t.n1.IP, t.endTime)
+func (t *MsgProcessTask) Process(tl *Timeline) {
+	if t.node.MsgExists(t.msg) {
+		return
+	}
+	timeUsage := t.msg.Difficulty / t.node.Perf
+	if timeUsage == 0 {
+		return
+	}
+	if !t.node.LockCpu() {
+		t.startTime += t.retryTime
+		tl.ImportTask(t.startTime, t)
+		return
+	}
+
+	// broadcast
+	newBroadcastTask(t.startTime+int64(timeUsage), t.node, t.msg)
 }
 
-type ConnReleaseTask struct {
+type ConnRecvTask struct {
 	startTime int64
-	n1        *Node
-	n2        *Node
+	sender    *Node
+	recver    *Node
+	msg       Message
 }
 
-func newConnReleaseTask(t int64, n1, n2 *Node) *ConnReleaseTask {
-	return &ConnReleaseTask{
-		startTime: t,
-		n1:        n1,
-		n2:        n2,
+func newConnRecvTask(startTime int64, sender, recver *Node, msg Message) *ConnRecvTask {
+	return &ConnRecvTask{
+		startTime: startTime,
+		sender:    sender,
+		recver:    recver,
+		msg:       msg,
 	}
 }
 
-func (t *ConnReleaseTask) Process(tl *Timeline) {
-	t.n1.ReleaseConn(t.n2.IP)
-	t.n2.ReleaseConn(t.n1.IP)
+func (t *ConnRecvTask) Process(tl *Timeline) {
+	task := newMsgProcessTask(t.startTime, t.startTime, t.recver, t.msg)
+	tl.ImportTask(t.startTime, task)
 }

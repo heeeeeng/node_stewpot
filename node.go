@@ -1,20 +1,16 @@
 package main
 
-import (
-	"fmt"
-	"sync"
-)
-
 var (
 	DefaultDelay int64 = 100
 )
 
 type Node struct {
-	SpeedRate int
+	db *CacheDB
 
 	IP        string
 	Bandwidth Bandwidth
 	Loc       Location
+	Perf      int
 
 	peers      map[string]*Peer
 	peerNumIn  int
@@ -22,10 +18,9 @@ type Node struct {
 	maxIn      int
 	maxOut     int
 
-	receiver chan NodeMsg
-	close    chan bool
+	CpuLocked bool
 
-	mu sync.RWMutex
+	close chan bool
 }
 
 type Bandwidth struct {
@@ -41,20 +36,19 @@ type NodeConfig struct {
 	MaxOut   int
 }
 
-func NewNode(rate int, config NodeConfig, loc Location) *Node {
+func NewNode(config NodeConfig, loc Location, perf int) *Node {
 	n := &Node{}
-	n.SpeedRate = rate
+
+	n.db = newCacheDB()
 
 	n.IP = config.IP
 	n.Bandwidth = Bandwidth{Upload: config.Upload, Download: config.Download}
 	n.Loc = loc
+	n.Perf = perf
 	n.peers = make(map[string]*Peer)
 	n.maxIn = config.MaxIn
 	n.maxOut = config.MaxOut
-	//n.Protocol = protocol
-
-	receiver := make(chan NodeMsg)
-	n.receiver = receiver
+	n.CpuLocked = false
 
 	closeC := make(chan bool)
 	n.close = closeC
@@ -62,74 +56,9 @@ func NewNode(rate int, config NodeConfig, loc Location) *Node {
 	return n
 }
 
-//func (n *Node) Start() {
-//	go n.loop()
-//}
-
 func (n *Node) Close() {
 	close(n.close)
 }
-
-func (n *Node) ConnOut(remoteNode *Node, timeout int) error {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	if n.peers[remoteNode.IP] != nil {
-		return fmt.Errorf("peer [%s] already exists", remoteNode.IP)
-	}
-	if n.peerNumOut == n.maxOut {
-		return fmt.Errorf("max connect out peers")
-	}
-
-	delay := n.GetDelay(remoteNode)
-	bw := n.minBandwidth(remoteNode)
-	pkgLoss := 0
-
-	p := NewPeer(n.SpeedRate, n.IP, remoteNode.IP, true, timeout, delay, bw, pkgLoss)
-	//go p.ReceiveMsg(n.receiver)
-
-	n.peers[remoteNode.IP] = p
-	n.peerNumOut++
-
-	return nil
-}
-
-func (n *Node) ConnIn(remoteNode *Node, timeout int) error {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	if n.peers[remoteNode.IP] != nil {
-		return fmt.Errorf("peer [%s] already exists", remoteNode.IP)
-	}
-	if n.peerNumIn == n.maxIn {
-		return fmt.Errorf("max connect in peers")
-	}
-
-	delay := n.GetDelay(remoteNode)
-	bw := n.minBandwidth(remoteNode)
-	pkgLoss := 0
-
-	p := NewPeer(n.SpeedRate, n.IP, remoteNode.IP, false, timeout, delay, bw, pkgLoss)
-	//go p.ReceiveMsg(n.receiver)
-
-	n.peers[remoteNode.IP] = p
-	n.peerNumIn++
-
-	return nil
-}
-
-//func (n *Node) BroadcastMsg(msg PureMsg) {
-//	n.mu.RLock()
-//	defer n.mu.RUnlock()
-//
-//	n.broadcastMsg(msg)
-//}
-//
-//func (n *Node) broadcastMsg(msg PureMsg) {
-//	for _, peer := range n.peers {
-//		go peer.SendMsg(msg)
-//	}
-//}
 
 func (n *Node) GetDelay(remote *Node) int64 {
 	if delay, ok := n.Loc.Delays[remote.Loc.Name]; ok {
@@ -138,70 +67,75 @@ func (n *Node) GetDelay(remote *Node) int64 {
 	return DefaultDelay
 }
 
-func (n *Node) minBandwidth(rn *Node) int {
-	min := n.Bandwidth.Upload
-	if n.Bandwidth.Download < min {
-		min = n.Bandwidth.Download
-	}
-	if rn.Bandwidth.Upload < min {
-		min = rn.Bandwidth.Upload
-	}
-	if rn.Bandwidth.Download < min {
-		min = rn.Bandwidth.Download
-	}
-	return min
+func (n *Node) MsgExists(msg Message) bool {
+	return n.db.Exist(msg.ID)
 }
 
-func (n *Node) LockConn(remote string, endTime int64) {
-	peer := n.peers[remote]
-	if peer == nil {
-		return
+func (n *Node) LockCpu() bool {
+	if n.CpuLocked {
+		return false
 	}
-	peer.LockConn(endTime)
+	n.CpuLocked = true
+	return true
 }
 
-func (n *Node) ReleaseConn(remote string) {
-	peer := n.peers[remote]
-	if peer == nil {
-		return
-	}
-	peer.ReleaseConn()
+func (n *Node) ReleaseCpu() {
+	n.CpuLocked = false
 }
 
-//func (n *Node) loop() {
-//	for {
-//		select {
-//		case <-n.receiver:
-//		//case nodeMsg := <-n.receiver:
-//		// TODO
-//		// deal with node
-//
-//		//msg := nodeMsg.Data
-//		//fmt.Println(fmt.Sprintf("node 【 %s 】 receive msg id: %d", n.IP, msg.ID))
-//
-//		case <-n.close:
-//			for _, p := range n.peers {
-//				p.Close()
-//			}
-//			return
-//		}
+//func (n *Node) minBandwidth(rn *Node) int {
+//	min := n.Bandwidth.Upload
+//	if n.Bandwidth.Download < min {
+//		min = n.Bandwidth.Download
 //	}
+//	if rn.Bandwidth.Upload < min {
+//		min = rn.Bandwidth.Upload
+//	}
+//	if rn.Bandwidth.Download < min {
+//		min = rn.Bandwidth.Download
+//	}
+//	return min
 //}
 
-type NodeMsg struct {
-	IP        string
-	Timestamp int64
-	Data      PureMsg
+type CacheDB struct {
+	trimNum  int
+	hotData  []bool
+	coldData int64
 }
 
-//func (m *NodeMsg) Decode() *PureMsg {
-//	id := BytesToInt64(m.Data[:8])
-//	data := m.Data[8:]
-//
-//	return &PureMsg{ID: id, Data: data}
-//}
+func newCacheDB() *CacheDB {
+	return &CacheDB{
+		trimNum:  1000,
+		hotData:  make([]bool, 0),
+		coldData: 0,
+	}
+}
 
-type PureMsg struct {
-	ID   int
-	Data int
+func (db *CacheDB) Exist(data int64) bool {
+	if db.coldData > data {
+		return true
+	}
+	if data-db.coldData > int64(len(db.hotData)) {
+		return false
+	}
+	return db.hotData[data-db.coldData-1]
+}
+
+func (db *CacheDB) Insert(data int64) {
+	if db.coldData > data {
+		return
+	}
+	if data-db.coldData <= int64(len(db.hotData)) {
+		db.hotData[data-db.coldData-1] = true
+		return
+	}
+	delta := data - db.coldData
+	db.hotData = append(db.hotData, make([]bool, delta)...)
+	db.hotData[data-db.coldData-1] = true
+
+	// trim if too large
+	if len(db.hotData) >= 2*db.trimNum {
+		db.hotData = db.hotData[db.trimNum:]
+		db.coldData += int64(db.trimNum)
+	}
 }

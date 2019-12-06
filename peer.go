@@ -46,42 +46,6 @@ func (p *Peer) ReleaseConn() {
 	p.conn.rlsTime = 0
 }
 
-//func (p *Peer) SendMsg(msg PureMsg) error {
-//	dumper.Log("{MSG-SEND} [%s] send msg %d to [%s]", p.ipLocal, msg.ID, p.ipRemote)
-//
-//	err := p.conn.SendMsg(msg)
-//	if err != nil {
-//		dumper.Log("{MSG-SEND-FAIL} [%s] send msg %d to [%s], err: %v", p.ipLocal, msg.ID, p.ipRemote, err)
-//	} else {
-//		dumper.Log("{MSG-SEND-SUCC} [%s] send msg %d to [%s]", p.ipLocal, msg.ID, p.ipRemote)
-//	}
-//	return err
-//}
-//
-//func (p *Peer) ReceiveMsg(receiver chan NodeMsg) {
-//	for {
-//		data, err := p.conn.RecvMsg()
-//		if err != nil {
-//			p.Close()
-//			return
-//		}
-//
-//		dumper.Log("{MSG-RECV} [%s] receive msg %d from [%s]", p.ipLocal, data.ID, p.ipRemote)
-//
-//		msg := NodeMsg{
-//			IP:        p.ipRemote,
-//			Timestamp: time.Now().Unix(),
-//			Data:      data,
-//		}
-//		select {
-//		case receiver <- msg:
-//			continue
-//		case <-p.close:
-//			return
-//		}
-//	}
-//}
-
 // Conn simulates a tcp link between two nodes.
 type Conn struct {
 	speedRate int
@@ -116,41 +80,3 @@ func NewConn(rate int, ipLocal, ipRemote string, timeout int, delay int64, bandw
 
 	return c
 }
-
-//func (c *Conn) SendMsg(msg PureMsg) error {
-//	//timer := time.NewTimer(time.Millisecond * time.Duration(c.timeout) / time.Duration(c.speedRate))
-//
-//	c.mu.Lock()
-//	defer c.mu.Unlock()
-//
-//	if c.delay > 0 {
-//		time.Sleep(time.Millisecond * time.Duration(c.delay) / time.Duration(c.speedRate))
-//	}
-//
-//	for msg.Data > 0 {
-//		select {
-//		case <-c.close:
-//			return fmt.Errorf("conn closed")
-//
-//		//case <-timer.C:
-//		//	return fmt.Errorf("conn timeout")
-//
-//		case c.sendC <- msg:
-//			msg.Data -= c.bandwidth
-//			continue
-//		}
-//	}
-//
-//	return nil
-//}
-//
-//func (c *Conn) RecvMsg() (PureMsg, error) {
-//	select {
-//	case <-c.close:
-//		return PureMsg{}, fmt.Errorf("conn closed")
-//
-//	case msg := <-c.recvC:
-//		return msg, nil
-//
-//	}
-//}
