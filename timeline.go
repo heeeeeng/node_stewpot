@@ -1,6 +1,8 @@
 package main
 
-import "sync"
+import (
+	"sync"
+)
 
 type Timeline struct {
 	start int64
@@ -22,25 +24,36 @@ func (tl *Timeline) ImportTask(startTime int64, task Task) {
 		timeUnit = tl.initTimeUnit(startTime)
 	}
 	timeUnit.appendTask(task)
+	tl.setTimeUnit(timeUnit)
+
+	if startTime > tl.end {
+		tl.end = startTime
+	}
 }
 
 func (tl *Timeline) getTimeUnit(t int64) *TimeUnit {
 	return tl.line[t]
 }
 
+func (tl *Timeline) setTimeUnit(tu *TimeUnit) {
+	tl.line[tu.timestamp] = tu
+}
+
 func (tl *Timeline) initTimeUnit(t int64) *TimeUnit {
-	timeUnit := newTimeUnit()
+	timeUnit := newTimeUnit(t)
 	tl.line[t] = timeUnit
 	return timeUnit
 }
 
 type TimeUnit struct {
-	tasks []Task
+	timestamp int64
+	tasks     []Task
 }
 
-func newTimeUnit() *TimeUnit {
+func newTimeUnit(timestamp int64) *TimeUnit {
 	return &TimeUnit{
-		tasks: make([]Task, 0),
+		timestamp: timestamp,
+		tasks:     make([]Task, 0),
 	}
 }
 
