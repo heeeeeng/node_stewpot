@@ -12,11 +12,13 @@ type Node struct {
 	Loc       Location
 	Perf      int
 
-	peers      map[string]*Peer
+	// peer related
 	peerNumIn  int
 	peerNumOut int
 	maxIn      int
 	maxOut     int
+	blackList  map[string]struct{}
+	peers      map[string]*Peer
 
 	CpuLocked bool
 
@@ -45,9 +47,14 @@ func NewNode(config NodeConfig, loc Location, perf int) *Node {
 	n.Bandwidth = Bandwidth{Upload: config.Upload, Download: config.Download}
 	n.Loc = loc
 	n.Perf = perf
-	n.peers = make(map[string]*Peer)
+
 	n.maxIn = config.MaxIn
 	n.maxOut = config.MaxOut
+	n.peerNumIn = 0
+	n.peerNumOut = 0
+	n.blackList = make(map[string]struct{})
+	n.peers = make(map[string]*Peer)
+
 	n.CpuLocked = false
 
 	closeC := make(chan bool)
@@ -81,6 +88,50 @@ func (n *Node) LockCpu() bool {
 
 func (n *Node) ReleaseCpu() {
 	n.CpuLocked = false
+}
+
+func (n *Node) AddPeer(p *Peer) {
+	n.peers[p.ipRemote] = p
+	if p.out {
+		n.peerNumOut++
+	} else {
+		n.peerNumIn++
+	}
+}
+
+func (n *Node) ConnectIn(remoteNode *Node) (bool, []*Node) {
+	if n.peerNumIn < n.maxIn {
+		peer := NewPeer(n.IP, remoteNode.IP, false)
+		n.AddPeer(peer)
+		return true, nil
+	}
+
+	var neighbors []*Node
+	for _, p := range n.peers {
+		neighbors = append(neighbors, p.node)
+	}
+	return false, neighbors
+}
+
+func (n *Node) TryConnect(remoteNode *Node) (connected bool) {
+	if _, inBlackList := n.blackList[remoteNode.IP]; inBlackList {
+		return false
+	}
+
+	connected, neighbors := remoteNode.ConnectIn(n)
+	if connected {
+		peer := NewPeer(n.IP, remoteNode.IP, true)
+		n.AddPeer(peer)
+		return true
+	}
+
+	for _, neighbor := range neighbors {
+		if n.TryConnect(neighbor) {
+			return true
+		}
+		n.blackList[neighbor.IP] = struct{}{}
+	}
+	return false
 }
 
 //func (n *Node) minBandwidth(rn *Node) int {

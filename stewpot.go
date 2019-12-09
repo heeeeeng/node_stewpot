@@ -1,5 +1,7 @@
 package main
 
+import "math/rand"
+
 type Stewpot struct {
 	protocol Protocol
 
@@ -13,38 +15,36 @@ func NewStewpot() *Stewpot {
 }
 
 func (s *Stewpot) InitNetwork() {
+	nodeNum := 100
 
-	//rate := 1000
-	//timeout := 1000
-	//
-	//ncCN := NodeConfig{
-	//	IP:       "CN1",
-	//	Upload:   1024,
-	//	Download: 1024,
-	//	MaxIn:    4,
-	//	MaxOut:   8,
-	//}
-	//nodeCN := NewNode(rate, ncCN, LocCN)
-	//recvCN := make(chan PureMsg)
-	//
-	//ncNA := NodeConfig{
-	//	IP:       "NA1",
-	//	Upload:   1024,
-	//	Download: 1024,
-	//	MaxIn:    4,
-	//	MaxOut:   8,
-	//}
-	//nodeNA := NewNode(rate, ncNA, LocNA)
-	//recvNA := make(chan PureMsg)
-	//
-	//nodeCN.ConnOut(nodeNA, timeout, recvCN, recvNA)
-	//nodeNA.ConnIn(nodeCN, timeout, recvNA, recvCN)
-	//
-	//s.nodes = append(s.nodes, nodeCN, nodeNA)
-	//
-	//for _, n := range s.nodes {
-	//	n.Start()
-	//}
+	loc := ConstLocations[rand.Intn(len(ConstLocations))]
+	conf := NodeConfig{
+		IP:       loc.Name,
+		Upload:   1024,
+		Download: 1024,
+		MaxIn:    4,
+		MaxOut:   8,
+	}
+	perf := 1024
+	bootstrap := NewNode(conf, loc, perf)
+	s.nodes = append(s.nodes, bootstrap)
+
+	for i := 1; i < nodeNum; i++ {
+		loc := ConstLocations[rand.Intn(len(ConstLocations))]
+		conf := NodeConfig{
+			IP:       loc.Name,
+			Upload:   1024,
+			Download: 1024,
+			MaxIn:    4,
+			MaxOut:   8,
+		}
+		perf := 1024
+		node := NewNode(conf, loc, perf)
+		s.nodes = append(s.nodes, node)
+
+		node.TryConnect(bootstrap)
+	}
+
 }
 
 // Stew start the simulating of the nodes network.
