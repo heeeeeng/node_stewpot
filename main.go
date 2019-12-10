@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 	"io"
 	"math/rand"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,11 +20,20 @@ func main() {
 	dumper = newDumper(time.Now(), 1000)
 
 	stewpot := NewStewpot()
-	stewpot.InitNetwork()
+	stewpot.InitNetwork(100)
 	stewpot.PrintOutNodes()
 	stewpot.Start()
 
-	time.Sleep(time.Second * 1000)
+	//time.Sleep(time.Second * 1000)
+
+	// server
+	http.HandleFunc("/", stewpot.MainPage)
+	http.HandleFunc("/graph", stewpot.GetNetworkGraph)
+
+	port := "10000"
+	fmt.Println("---------Server Start!---------")
+	fmt.Println("Port: ", port)
+	logrus.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 func readConfig() {

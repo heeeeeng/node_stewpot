@@ -12,6 +12,12 @@ type Timeline struct {
 	mu sync.RWMutex
 }
 
+func newTimeline() *Timeline {
+	t := &Timeline{}
+
+	return t
+}
+
 func (tl *Timeline) ImportTask(startTime int64, task Task) {
 	if startTime < tl.start {
 		// TODO

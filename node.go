@@ -126,14 +126,17 @@ func (n *Node) ConnectIn(remoteNode *Node) (bool, []*Node) {
 	return connected, neighbors
 }
 
-func (n *Node) TryConnect(remoteNode *Node) (connected bool) {
+func (n *Node) TryConnect(remoteNode *Node) {
 	fmt.Println(fmt.Sprintf("[TryConnect]\t node %s try to connect: %s", n.IP, remoteNode.IP))
 
 	if _, inBlackList := n.blackList[remoteNode.IP]; inBlackList {
-		return false
+		return
 	}
 	n.blackList[remoteNode.IP] = struct{}{}
 
+	if n.peerNumOut >= n.maxOut {
+		return
+	}
 	connected, neighbors := remoteNode.ConnectIn(n)
 	if connected {
 		peer := NewPeer(n.IP, remoteNode.IP, true, remoteNode)
@@ -141,11 +144,11 @@ func (n *Node) TryConnect(remoteNode *Node) (connected bool) {
 	}
 
 	for _, neighbor := range neighbors {
-		if n.TryConnect(neighbor) && n.peerNumOut >= n.maxOut {
-			return true
+		if n.peerNumOut >= n.maxOut {
+			return
 		}
+		n.TryConnect(neighbor)
 	}
-	return false
 }
 
 func (n *Node) String() string {
