@@ -1,11 +1,13 @@
 package main
 
-import "math/rand"
+import (
+	"fmt"
+	"math/rand"
+)
 
 type Stewpot struct {
-	protocol Protocol
-
-	nodes []*Node
+	bootstrap *Node
+	nodes     []*Node
 }
 
 func NewStewpot() *Stewpot {
@@ -19,32 +21,31 @@ func (s *Stewpot) InitNetwork() {
 
 	loc := ConstLocations[rand.Intn(len(ConstLocations))]
 	conf := NodeConfig{
-		IP:       loc.Name,
+		IP:       fmt.Sprintf("%d_%s", 0, loc.Name),
 		Upload:   1024,
 		Download: 1024,
-		MaxIn:    4,
-		MaxOut:   8,
+		MaxIn:    8,
+		MaxOut:   4,
 	}
 	perf := 1024
-	bootstrap := NewNode(conf, loc, perf)
-	s.nodes = append(s.nodes, bootstrap)
+	s.bootstrap = NewNode(conf, loc, perf)
+	s.nodes = append(s.nodes, s.bootstrap)
 
 	for i := 1; i < nodeNum; i++ {
 		loc := ConstLocations[rand.Intn(len(ConstLocations))]
 		conf := NodeConfig{
-			IP:       loc.Name,
+			IP:       fmt.Sprintf("%d_%s", i, loc.Name),
 			Upload:   1024,
 			Download: 1024,
-			MaxIn:    4,
-			MaxOut:   8,
+			MaxIn:    8,
+			MaxOut:   4,
 		}
 		perf := 1024
 		node := NewNode(conf, loc, perf)
 		s.nodes = append(s.nodes, node)
 
-		node.TryConnect(bootstrap)
+		node.TryConnect(s.bootstrap)
 	}
-
 }
 
 // Stew start the simulating of the nodes network.
@@ -65,6 +66,8 @@ func (s *Stewpot) Start() {
 
 }
 
-type Protocol interface {
-	GetPackages() [][]byte
+func (s *Stewpot) PrintOutNodes() {
+	for _, n := range s.nodes {
+		fmt.Println(n.String())
+	}
 }

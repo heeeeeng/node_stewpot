@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"strings"
+)
+
 var (
 	DefaultDelay int64 = 100
 )
@@ -52,7 +57,10 @@ func NewNode(config NodeConfig, loc Location, perf int) *Node {
 	n.maxOut = config.MaxOut
 	n.peerNumIn = 0
 	n.peerNumOut = 0
+
 	n.blackList = make(map[string]struct{})
+	n.blackList[n.IP] = struct{}{}
+
 	n.peers = make(map[string]*Peer)
 
 	n.CpuLocked = false
@@ -100,38 +108,58 @@ func (n *Node) AddPeer(p *Peer) {
 }
 
 func (n *Node) ConnectIn(remoteNode *Node) (bool, []*Node) {
+	fmt.Println(fmt.Sprintf("[ConnectIn]\t node %s connect in %s", remoteNode.IP, n.IP))
+	var connected bool
+
 	if n.peerNumIn < n.maxIn {
-		peer := NewPeer(n.IP, remoteNode.IP, false)
+		peer := NewPeer(n.IP, remoteNode.IP, false, remoteNode)
 		n.AddPeer(peer)
-		return true, nil
+		n.blackList[remoteNode.IP] = struct{}{}
+		connected = true
 	}
 
+	fmt.Println(fmt.Sprintf("start return neighbor: %s", n.String()))
 	var neighbors []*Node
 	for _, p := range n.peers {
 		neighbors = append(neighbors, p.node)
 	}
-	return false, neighbors
+	return connected, neighbors
 }
 
 func (n *Node) TryConnect(remoteNode *Node) (connected bool) {
+	fmt.Println(fmt.Sprintf("[TryConnect]\t node %s try to connect: %s", n.IP, remoteNode.IP))
+
 	if _, inBlackList := n.blackList[remoteNode.IP]; inBlackList {
 		return false
 	}
+	n.blackList[remoteNode.IP] = struct{}{}
 
 	connected, neighbors := remoteNode.ConnectIn(n)
 	if connected {
-		peer := NewPeer(n.IP, remoteNode.IP, true)
+		peer := NewPeer(n.IP, remoteNode.IP, true, remoteNode)
 		n.AddPeer(peer)
-		return true
 	}
 
 	for _, neighbor := range neighbors {
-		if n.TryConnect(neighbor) {
+		if n.TryConnect(neighbor) && n.peerNumOut >= n.maxOut {
 			return true
 		}
-		n.blackList[neighbor.IP] = struct{}{}
 	}
 	return false
+}
+
+func (n *Node) String() string {
+	var neighbors []string
+	for _, p := range n.peers {
+		neighborInfo := p.ipRemote
+		if p.out {
+			neighborInfo += "_out"
+		} else {
+			neighborInfo += "_in"
+		}
+		neighbors = append(neighbors, neighborInfo)
+	}
+	return fmt.Sprintf("{ ip: %s, neighbors: %s }", n.IP, strings.Join(neighbors, ", "))
 }
 
 //func (n *Node) minBandwidth(rn *Node) int {

@@ -10,12 +10,13 @@ type Peer struct {
 	close chan bool
 }
 
-func NewPeer(ipLocal, ipRemote string, out bool) *Peer {
+func NewPeer(ipLocal, ipRemote string, out bool, remoteNode *Node) *Peer {
 	p := &Peer{}
 
 	p.ipLocal = ipLocal
 	p.ipRemote = ipRemote
 	p.out = out
+	p.node = remoteNode
 	p.close = make(chan bool)
 
 	//conn := NewConn(ipLocal, ipRemote, timeout, delay, bandwidth, pkgLoss, p.close)

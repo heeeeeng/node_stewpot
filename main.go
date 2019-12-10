@@ -20,6 +20,7 @@ func main() {
 
 	stewpot := NewStewpot()
 	stewpot.InitNetwork()
+	stewpot.PrintOutNodes()
 	stewpot.Start()
 
 	time.Sleep(time.Second * 1000)
