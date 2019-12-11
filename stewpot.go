@@ -62,8 +62,13 @@ func (s *Stewpot) PrintOutNodes() {
 }
 
 func (s *Stewpot) MainPage(w http.ResponseWriter, r *http.Request) {
-	t, _ := template.ParseFiles("./index.html")
+	t, _ := template.ParseFiles("./static/index.html")
 	t.Execute(w, "hello!")
+}
+
+func (s *Stewpot) StaticController(w http.ResponseWriter, r *http.Request) {
+	fs := http.FileServer(http.Dir("./"))
+	fs.ServeHTTP(w, r)
 }
 
 func (s *Stewpot) GetNetworkGraph(w http.ResponseWriter, r *http.Request) {

@@ -28,6 +28,7 @@ func main() {
 
 	// server
 	http.HandleFunc("/", stewpot.MainPage)
+	http.HandleFunc("/static/", stewpot.StaticController)
 	http.HandleFunc("/graph", stewpot.GetNetworkGraph)
 
 	port := "10000"

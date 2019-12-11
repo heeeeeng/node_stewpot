@@ -1,40 +1,32 @@
-<!DOCTYPE html>
-<html style="height: 100%">
-<head>
-    <meta charset="utf-8">
-</head>
-<body style="height: 100%; margin: 0">
-<div id="container" style="height: 100%"></div>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts-gl/dist/echarts-gl.min.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts-stat/dist/ecStat.min.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/extension/dataTool.min.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/map/js/china.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/map/js/world.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/extension/bmap.min.js"></script>
-<script type="text/javascript">
 
+window.onload = main;
+
+dom = document.getElementById("container");
+myChart = echarts.init(dom);
+
+var graph;
+var intervalID;
+
+function main() {
+    initChart();
+
+    intervalID = window.setInterval(internalFunc, 500);
+
+
+}
+
+function initChart() {
     // get graph data
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.open( "GET", "/graph", false ); // false for synchronous request
     xmlHttp.send( null );
 
-    var graph = JSON.parse(xmlHttp.responseText);
+    graph = JSON.parse(xmlHttp.responseText);
 
-    var dom = document.getElementById("container");
-    var myChart = echarts.init(dom);
-    var app = {};
     option = null;
     myChart.showLoading();
     myChart.hideLoading();
 
-
-    var categories = [];
-    for (var i = 0; i < 9; i++) {
-        categories[i] = {
-            name: '类目' + i
-        };
-    }
     graph.nodes.forEach(function (node) {
         node.itemStyle = null;
         node.symbolSize = 10;
@@ -44,6 +36,7 @@
         node.x = node.y = null;
         node.draggable = true;
     });
+
     option = {
         title: {
             text: 'Les Miserables',
@@ -52,12 +45,6 @@
             left: 'right'
         },
         tooltip: {},
-        /* legend: [{
-            // selectedMode: 'single',
-            data: categories.map(function (a) {
-                return a.name;
-            })
-        }], */
         animation: false,
         series : [
             {
@@ -66,7 +53,8 @@
                 layout: 'force',
                 data: graph.nodes,
                 links: graph.links,
-                categories: categories,
+                focusNodeAdjacency: true,
+                // categories: categories,
                 roam: true,
                 label: {
                     normal: {
@@ -91,6 +79,42 @@
     if (option && typeof option === "object") {
         myChart.setOption(option, true);
     }
-</script>
-</body>
-</html>
+
+}
+
+var cor0_0;
+var cor0_1;
+
+function internalFunc() {
+    node_0 = myChart.getModel().getSeriesByIndex(0).preservedPoints[graph.nodes[0].name];
+    if (cor0_0 != node_0[0] || cor0_1 != node_0[1]) {
+        cor0_0 = node_0[0];
+        cor0_1 = node_0[1];
+        return;
+    }
+    console.log(node_0);
+
+    window.clearInterval(intervalID);
+    switchToNoneLayout();
+}
+
+function switchToNoneLayout() {
+    option = myChart.getOption();
+
+    nodes = myChart.getModel().getSeriesByIndex(0).preservedPoints;
+    for (var i=0; i<graph.nodes.length; i++) {
+        var nodeName = graph.nodes[i].name;
+        graph.nodes[i].x = nodes[nodeName][0];
+        graph.nodes[i].y = nodes[nodeName][1];
+    }
+
+    option.series[0].layout = "none";
+    option.series[0].data = graph.nodes;
+    option.series[0].force = null;
+
+    myChart.setOption(option);
+
+    node_0 = myChart.getModel().getSeriesByIndex(0).preservedPoints[graph.nodes[0].name];
+    console.log(node_0);
+}
+
