@@ -30,7 +30,7 @@ function initChart() {
     graph.nodes.forEach(function (node) {
         node.itemStyle = null;
         node.symbolSize = 10;
-        node.value = node.symbolSize;
+        // node.value = node.symbolSize;
         // node.category = node.attributes.modularity_class;
         // Use random x, y
         node.x = node.y = null;
