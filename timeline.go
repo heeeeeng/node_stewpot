@@ -1,54 +1,96 @@
 package main
 
-import (
-	"sync"
-)
-
 type Timeline struct {
-	start int64
-	end   int64
-	line  map[int64]*TimeUnit
+	timestamp int64
 
-	mu sync.RWMutex
+	current *TimeUnit
+	next    *TimeUnit
+	db      *MemDB
+
+	close chan struct{}
 }
 
-func newTimeline() *Timeline {
+func newTimeline(db *MemDB) *Timeline {
 	t := &Timeline{}
+
+	t.timestamp = 0
+	t.current = newTimeUnit(t.timestamp)
+	t.next = newTimeUnit(t.timestamp + 1)
+	t.db = db
+
+	t.close = make(chan struct{})
 
 	return t
 }
 
+func (tl *Timeline) Start() {
+	go tl.loop()
+}
+
+func (tl *Timeline) Stop() {
+	close(tl.close)
+}
+
+func (tl *Timeline) CurrentTime() int64 { return tl.timestamp }
+
+func (tl *Timeline) NextTime() int64 { return tl.timestamp + 1 }
+
 func (tl *Timeline) ImportTask(startTime int64, task Task) {
-	if startTime < tl.start {
+	if startTime < tl.timestamp || startTime > tl.timestamp+1 {
 		// TODO
 		// log out this situation, this should not happen.
 		return
 	}
-
-	timeUnit := tl.getTimeUnit(startTime)
-	if timeUnit == nil {
-		timeUnit = tl.initTimeUnit(startTime)
+	if startTime == tl.current.timestamp {
+		tl.current.appendTask(task)
+		return
 	}
-	timeUnit.appendTask(task)
-	tl.setTimeUnit(timeUnit)
-
-	if startTime > tl.end {
-		tl.end = startTime
+	if startTime == tl.next.timestamp {
+		tl.next.appendTask(task)
+		return
 	}
+	return
 }
 
 func (tl *Timeline) getTimeUnit(t int64) *TimeUnit {
-	return tl.line[t]
+	if t == tl.current.timestamp {
+		return tl.current
+	} else if t == tl.next.timestamp {
+		return tl.next
+	} else {
+		return tl.db.Get(t)
+	}
 }
 
-func (tl *Timeline) setTimeUnit(tu *TimeUnit) {
-	tl.line[tu.timestamp] = tu
-}
+//func (tl *Timeline) setTimeUnit(tu *TimeUnit) {
+//	tl.line[tu.timestamp] = tu
+//}
 
-func (tl *Timeline) initTimeUnit(t int64) *TimeUnit {
-	timeUnit := newTimeUnit(t)
-	tl.line[t] = timeUnit
-	return timeUnit
+//func (tl *Timeline) initTimeUnit(t int64) *TimeUnit {
+//	timeUnit := newTimeUnit(t)
+//	tl.line[t] = timeUnit
+//	return timeUnit
+//}
+
+func (tl *Timeline) loop() {
+	for {
+		select {
+		case <-tl.close:
+			return
+
+		default:
+			if tl.current == nil {
+				continue
+			}
+
+			for _, task := range tl.current.tasks {
+				task.Process(tl)
+			}
+			tl.current = tl.next
+			tl.next = newTimeUnit(tl.timestamp)
+			tl.timestamp = tl.NextTime()
+		}
+	}
 }
 
 type TimeUnit struct {

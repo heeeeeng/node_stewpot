@@ -53,6 +53,7 @@ function initChart() {
                 layout: 'force',
                 data: graph.nodes,
                 links: graph.links,
+                draggable: true,
                 focusNodeAdjacency: true,
                 // categories: categories,
                 roam: true,

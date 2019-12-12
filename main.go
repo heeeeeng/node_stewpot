@@ -13,11 +13,13 @@ import (
 	"time"
 )
 
-var dumper Dumper
+var recorder Recorder
 
 func main() {
+	readConfig()
+	initLogger()
+
 	rand.Seed(time.Now().UnixNano())
-	dumper = newDumper(time.Now(), 1000)
 
 	stewpot := NewStewpot()
 	stewpot.InitNetwork(100)

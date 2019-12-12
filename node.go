@@ -10,7 +10,7 @@ var (
 )
 
 type Node struct {
-	db *CacheDB
+	db *NodeCacheDB
 
 	IP        string
 	Bandwidth Bandwidth
@@ -46,7 +46,7 @@ type NodeConfig struct {
 func NewNode(config NodeConfig, loc Location, perf int) *Node {
 	n := &Node{}
 
-	n.db = newCacheDB()
+	n.db = newNodeCacheDB()
 
 	n.IP = config.IP
 	n.Bandwidth = Bandwidth{Upload: config.Upload, Download: config.Download}
@@ -84,6 +84,10 @@ func (n *Node) GetDelay(remote *Node) int64 {
 
 func (n *Node) MsgExists(msg Message) bool {
 	return n.db.Exist(msg.ID)
+}
+
+func (n *Node) StoreMsg(msg Message) {
+	n.db.Insert(msg.ID)
 }
 
 func (n *Node) LockCpu() bool {
@@ -179,21 +183,21 @@ func (n *Node) String() string {
 //	return min
 //}
 
-type CacheDB struct {
+type NodeCacheDB struct {
 	trimNum  int
 	hotData  []bool
 	coldData int64
 }
 
-func newCacheDB() *CacheDB {
-	return &CacheDB{
+func newNodeCacheDB() *NodeCacheDB {
+	return &NodeCacheDB{
 		trimNum:  1000,
 		hotData:  make([]bool, 0),
 		coldData: 0,
 	}
 }
 
-func (db *CacheDB) Exist(data int64) bool {
+func (db *NodeCacheDB) Exist(data int64) bool {
 	if db.coldData > data {
 		return true
 	}
@@ -203,7 +207,7 @@ func (db *CacheDB) Exist(data int64) bool {
 	return db.hotData[data-db.coldData-1]
 }
 
-func (db *CacheDB) Insert(data int64) {
+func (db *NodeCacheDB) Insert(data int64) {
 	if db.coldData > data {
 		return
 	}

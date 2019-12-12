@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestCacheDB_Insert(t *testing.T) {
-	db := newCacheDB()
+	db := newNodeCacheDB()
 
 	db.Insert(2020)
 	if db.coldData != 1000 {
