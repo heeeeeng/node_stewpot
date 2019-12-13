@@ -12,7 +12,6 @@ function main() {
 
     intervalID = window.setInterval(internalFunc, 500);
 
-
 }
 
 function initChart() {
@@ -116,6 +115,26 @@ function switchToNoneLayout() {
     myChart.setOption(option);
 
     node_0 = myChart.getModel().getSeriesByIndex(0).preservedPoints[graph.nodes[0].name];
-    console.log(node_0);
+    console.log("switched to none");
+
+    sendMsg();
+}
+
+function sendMsg() {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "/send_msg", false ); // false for synchronous request
+    xmlHttp.send( null );
+
+    console.log(xmlHttp.responseText);
+    msgStartTime = bin2String(xmlHttp.responseText);
+    console.log(msgStartTime);
+}
+
+function bin2String(array) {
+    var result = "";
+    for (var i = 0; i < array.length; i++) {
+        result += String.fromCharCode(parseInt(array[i], 2));
+    }
+    return result;
 }
 

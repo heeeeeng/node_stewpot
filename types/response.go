@@ -1,4 +1,4 @@
-package main
+package types
 
 type Graph struct {
 	Nodes []GraphNode `json:"nodes"`
@@ -15,3 +15,10 @@ type GraphLink struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
 }
+
+type TimeUnitResp struct {
+	Timestamp int64      `json:"timestamp"`
+	Tasks     []TaskResp `json:"tasks"`
+}
+
+type TaskResp interface{}

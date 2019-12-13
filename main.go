@@ -32,6 +32,8 @@ func main() {
 	http.HandleFunc("/", stewpot.MainPage)
 	http.HandleFunc("/static/", stewpot.StaticController)
 	http.HandleFunc("/graph", stewpot.GetNetworkGraph)
+	http.HandleFunc("/send_msg", stewpot.SendMsg)
+	http.HandleFunc("/time_unit", stewpot.GetTimeUnit)
 
 	port := "10000"
 	fmt.Println("---------Server Start!---------")
@@ -115,12 +117,9 @@ func initLogger() {
 	if lineNum {
 		logrus.SetReportCaller(true)
 	}
+
 	//logger := logrus.StandardLogger()
-	logrus.Debug("Logger initialized.")
-	byModule := viper.GetBool("multifile_by_module")
-	if !byModule {
-		logdir = ""
-	}
+	//logrus.Debug("Logger initialized.")
 
 }
 

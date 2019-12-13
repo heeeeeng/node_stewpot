@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/heeeeeng/node_stewpot/types"
 	"strings"
 )
 
@@ -12,10 +13,10 @@ var (
 type Node struct {
 	db *NodeCacheDB
 
-	IP        string
-	Bandwidth Bandwidth
-	Loc       Location
-	Perf      int
+	ip        string
+	bandwidth Bandwidth
+	location  types.Location
+	perf      int
 
 	// peer related
 	peerNumIn  int
@@ -23,7 +24,7 @@ type Node struct {
 	maxIn      int
 	maxOut     int
 	blackList  map[string]struct{}
-	peers      map[string]*Peer
+	peers      map[string]types.Peer
 
 	CpuLocked bool
 
@@ -43,15 +44,15 @@ type NodeConfig struct {
 	MaxOut   int
 }
 
-func NewNode(config NodeConfig, loc Location, perf int) *Node {
+func NewNode(config NodeConfig, loc types.Location, perf int) *Node {
 	n := &Node{}
 
 	n.db = newNodeCacheDB()
 
-	n.IP = config.IP
-	n.Bandwidth = Bandwidth{Upload: config.Upload, Download: config.Download}
-	n.Loc = loc
-	n.Perf = perf
+	n.ip = config.IP
+	n.bandwidth = Bandwidth{Upload: config.Upload, Download: config.Download}
+	n.location = loc
+	n.perf = perf
 
 	n.maxIn = config.MaxIn
 	n.maxOut = config.MaxOut
@@ -59,9 +60,9 @@ func NewNode(config NodeConfig, loc Location, perf int) *Node {
 	n.peerNumOut = 0
 
 	n.blackList = make(map[string]struct{})
-	n.blackList[n.IP] = struct{}{}
+	n.blackList[n.ip] = struct{}{}
 
-	n.peers = make(map[string]*Peer)
+	n.peers = make(map[string]types.Peer)
 
 	n.CpuLocked = false
 
@@ -75,18 +76,34 @@ func (n *Node) Close() {
 	close(n.close)
 }
 
-func (n *Node) GetDelay(remote *Node) int64 {
-	if delay, ok := n.Loc.Delays[remote.Loc.Name]; ok {
+func (n *Node) IP() string {
+	return n.ip
+}
+
+func (n *Node) Location() types.Location {
+	return n.location
+}
+
+func (n *Node) Perf() int {
+	return n.perf
+}
+
+func (n *Node) Peers() map[string]types.Peer {
+	return n.peers
+}
+
+func (n *Node) GetDelay(loc types.Location) int64 {
+	if delay, ok := n.location.Delays[loc.Name]; ok {
 		return delay
 	}
 	return DefaultDelay
 }
 
-func (n *Node) MsgExists(msg Message) bool {
+func (n *Node) MsgExists(msg types.Message) bool {
 	return n.db.Exist(msg.ID)
 }
 
-func (n *Node) StoreMsg(msg Message) {
+func (n *Node) StoreMsg(msg types.Message) {
 	n.db.Insert(msg.ID)
 }
 
@@ -111,39 +128,39 @@ func (n *Node) AddPeer(p *Peer) {
 	}
 }
 
-func (n *Node) ConnectIn(remoteNode *Node) (bool, []*Node) {
-	fmt.Println(fmt.Sprintf("[ConnectIn]\t node %s connect in %s", remoteNode.IP, n.IP))
+func (n *Node) ConnectIn(remoteNode types.Node) (bool, []types.Node) {
+	fmt.Println(fmt.Sprintf("[ConnectIn]\t node %s connect in %s", remoteNode.IP(), n.ip))
 	var connected bool
 
 	if n.peerNumIn < n.maxIn {
-		peer := NewPeer(n.IP, remoteNode.IP, false, remoteNode)
+		peer := NewPeer(n.ip, remoteNode.IP(), false, remoteNode)
 		n.AddPeer(peer)
-		n.blackList[remoteNode.IP] = struct{}{}
+		n.blackList[remoteNode.IP()] = struct{}{}
 		connected = true
 	}
 
 	fmt.Println(fmt.Sprintf("start return neighbor: %s", n.String()))
-	var neighbors []*Node
+	var neighbors []types.Node
 	for _, p := range n.peers {
-		neighbors = append(neighbors, p.node)
+		neighbors = append(neighbors, p.GetNode())
 	}
 	return connected, neighbors
 }
 
-func (n *Node) TryConnect(remoteNode *Node) {
-	fmt.Println(fmt.Sprintf("[TryConnect]\t node %s try to connect: %s", n.IP, remoteNode.IP))
+func (n *Node) TryConnect(remoteNode types.Node) {
+	fmt.Println(fmt.Sprintf("[TryConnect]\t node %s try to connect: %s", n.ip, remoteNode.IP()))
 
-	if _, inBlackList := n.blackList[remoteNode.IP]; inBlackList {
+	if _, inBlackList := n.blackList[remoteNode.IP()]; inBlackList {
 		return
 	}
-	n.blackList[remoteNode.IP] = struct{}{}
+	n.blackList[remoteNode.IP()] = struct{}{}
 
 	if n.peerNumOut >= n.maxOut {
 		return
 	}
 	connected, neighbors := remoteNode.ConnectIn(n)
 	if connected {
-		peer := NewPeer(n.IP, remoteNode.IP, true, remoteNode)
+		peer := NewPeer(n.ip, remoteNode.IP(), true, remoteNode)
 		n.AddPeer(peer)
 	}
 
@@ -158,30 +175,16 @@ func (n *Node) TryConnect(remoteNode *Node) {
 func (n *Node) String() string {
 	var neighbors []string
 	for _, p := range n.peers {
-		neighborInfo := p.ipRemote
-		if p.out {
+		neighborInfo := p.RemoteIP()
+		if p.Out() {
 			neighborInfo += "_out"
 		} else {
 			neighborInfo += "_in"
 		}
 		neighbors = append(neighbors, neighborInfo)
 	}
-	return fmt.Sprintf("{ ip: %s, neighbors: %s }", n.IP, strings.Join(neighbors, ", "))
+	return fmt.Sprintf("{ ip: %s, neighbors: %s }", n.ip, strings.Join(neighbors, ", "))
 }
-
-//func (n *Node) minBandwidth(rn *Node) int {
-//	min := n.Bandwidth.Upload
-//	if n.Bandwidth.Download < min {
-//		min = n.Bandwidth.Download
-//	}
-//	if rn.Bandwidth.Upload < min {
-//		min = rn.Bandwidth.Upload
-//	}
-//	if rn.Bandwidth.Download < min {
-//		min = rn.Bandwidth.Download
-//	}
-//	return min
-//}
 
 type NodeCacheDB struct {
 	trimNum  int

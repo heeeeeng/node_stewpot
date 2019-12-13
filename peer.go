@@ -1,16 +1,18 @@
 package main
 
+import "github.com/heeeeeng/node_stewpot/types"
+
 type Peer struct {
 	ipLocal  string
 	ipRemote string
 	out      bool
 
-	node *Node
+	node types.Node
 
 	close chan bool
 }
 
-func NewPeer(ipLocal, ipRemote string, out bool, remoteNode *Node) *Peer {
+func NewPeer(ipLocal, ipRemote string, out bool, remoteNode types.Node) *Peer {
 	p := &Peer{}
 
 	p.ipLocal = ipLocal
@@ -33,8 +35,16 @@ func (p *Peer) Close() {
 //	return p.conn.delay
 //}
 
-func (p *Peer) GetNode() *Node {
+func (p *Peer) GetNode() types.Node {
 	return p.node
+}
+
+func (p *Peer) RemoteIP() string {
+	return p.ipRemote
+}
+
+func (p *Peer) Out() bool {
+	return p.out
 }
 
 //func (p *Peer) LockConn(endTime int64) {

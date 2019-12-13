@@ -22,5 +22,8 @@ func (db *MemDB) Get(t int64) *TimeUnit {
 }
 
 func (db *MemDB) Insert(t *TimeUnit) {
+	if t != nil {
+		//fmt.Println(fmt.Sprintf("insert time unit, time: %d, tasks: %v", t.timestamp, t.tasks))
+	}
 	db.timeline[t.timestamp] = t
 }

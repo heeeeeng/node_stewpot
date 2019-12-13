@@ -2,10 +2,15 @@ package main
 
 import (
 	"fmt"
+	"github.com/heeeeeng/node_stewpot/types"
 	"math/rand"
+	"sync"
 )
 
 type Stewpot struct {
+	msg       int64
+	msgLocker sync.RWMutex
+
 	bootstrap *Node
 	nodes     []*Node
 	timeline  *Timeline
@@ -22,7 +27,7 @@ func NewStewpot() *Stewpot {
 }
 
 func (s *Stewpot) InitNetwork(nodeNum int) {
-	loc := ConstLocations[rand.Intn(len(ConstLocations))]
+	loc := types.ConstLocations[rand.Intn(len(types.ConstLocations))]
 	conf := NodeConfig{
 		IP:       fmt.Sprintf("%d_%s", 0, loc.Name),
 		Upload:   1024,
@@ -35,7 +40,7 @@ func (s *Stewpot) InitNetwork(nodeNum int) {
 	s.nodes = append(s.nodes, s.bootstrap)
 
 	for i := 1; i < nodeNum; i++ {
-		loc := ConstLocations[rand.Intn(len(ConstLocations))]
+		loc := types.ConstLocations[rand.Intn(len(types.ConstLocations))]
 		conf := NodeConfig{
 			IP:       fmt.Sprintf("%d_%s", i, loc.Name),
 			Upload:   1024,
@@ -61,4 +66,14 @@ func (s *Stewpot) PrintOutNodes() {
 	for _, n := range s.nodes {
 		fmt.Println(n.String())
 	}
+}
+
+func (s *Stewpot) GenerateMsg() types.Message {
+	s.msgLocker.Lock()
+	defer s.msgLocker.Unlock()
+
+	msg := types.NewMessage(nil, 1, s.msg)
+	s.msg++
+
+	return msg
 }

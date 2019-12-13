@@ -1,5 +1,13 @@
 package main
 
+import (
+	"fmt"
+	"github.com/heeeeeng/node_stewpot/tasks"
+	"github.com/heeeeeng/node_stewpot/types"
+	"sync"
+	"time"
+)
+
 type Timeline struct {
 	timestamp int64
 
@@ -7,6 +15,7 @@ type Timeline struct {
 	next    *TimeUnit
 	db      *MemDB
 
+	mu    sync.RWMutex
 	close chan struct{}
 }
 
@@ -35,8 +44,31 @@ func (tl *Timeline) CurrentTime() int64 { return tl.timestamp }
 
 func (tl *Timeline) NextTime() int64 { return tl.timestamp + 1 }
 
-func (tl *Timeline) ImportTask(startTime int64, task Task) {
-	if startTime < tl.timestamp || startTime > tl.timestamp+1 {
+//func (tl *Timeline) ImportCurrentTask(task Task) {
+//	tl.mu.Lock()
+//	defer tl.mu.Unlock()
+//
+//	tl.importTask(tl.CurrentTime(), task)
+//}
+//
+//func (tl *Timeline) ImportNextTask(task Task) {
+//	tl.mu.Lock()
+//	defer tl.mu.Unlock()
+//
+//	tl.importTask(tl.NextTime(), task)
+//}
+
+func (tl *Timeline) SendNewMsg(node *Node, msg types.Message) int64 {
+	tl.mu.Lock()
+	defer tl.mu.Unlock()
+
+	task := tasks.NewMsgProcessTask(tl.NextTime(), node, msg)
+	tl.ImportTask(task.StartTime(), task)
+	return task.StartTime()
+}
+
+func (tl *Timeline) ImportTask(startTime int64, task types.Task) {
+	if startTime != tl.current.timestamp || startTime != tl.next.timestamp {
 		// TODO
 		// log out this situation, this should not happen.
 		return
@@ -52,7 +84,7 @@ func (tl *Timeline) ImportTask(startTime int64, task Task) {
 	return
 }
 
-func (tl *Timeline) getTimeUnit(t int64) *TimeUnit {
+func (tl *Timeline) GetTimeUnit(t int64) *TimeUnit {
 	if t == tl.current.timestamp {
 		return tl.current
 	} else if t == tl.next.timestamp {
@@ -61,16 +93,6 @@ func (tl *Timeline) getTimeUnit(t int64) *TimeUnit {
 		return tl.db.Get(t)
 	}
 }
-
-//func (tl *Timeline) setTimeUnit(tu *TimeUnit) {
-//	tl.line[tu.timestamp] = tu
-//}
-
-//func (tl *Timeline) initTimeUnit(t int64) *TimeUnit {
-//	timeUnit := newTimeUnit(t)
-//	tl.line[t] = timeUnit
-//	return timeUnit
-//}
 
 func (tl *Timeline) loop() {
 	for {
@@ -83,28 +105,57 @@ func (tl *Timeline) loop() {
 				continue
 			}
 
-			for _, task := range tl.current.tasks {
+			for {
+				task := tl.current.nextTask()
+				if task == nil {
+					break
+				}
 				task.Process(tl)
 			}
+
+			tl.mu.Lock()
+			tl.db.Insert(tl.current)
+			tl.timestamp++
 			tl.current = tl.next
-			tl.next = newTimeUnit(tl.timestamp)
-			tl.timestamp = tl.NextTime()
+			tl.next = newTimeUnit(tl.timestamp + 1)
+
+			tl.mu.Unlock()
+
+			time.Sleep(time.Millisecond)
 		}
 	}
 }
 
 type TimeUnit struct {
 	timestamp int64
-	tasks     []Task
+	tasks     []types.Task
+
+	mu sync.RWMutex
 }
 
 func newTimeUnit(timestamp int64) *TimeUnit {
 	return &TimeUnit{
 		timestamp: timestamp,
-		tasks:     make([]Task, 0),
+		tasks:     make([]types.Task, 0),
 	}
 }
 
-func (t *TimeUnit) appendTask(task Task) {
+func (t *TimeUnit) appendTask(task types.Task) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	fmt.Println("appendTask")
 	t.tasks = append(t.tasks, task)
+}
+
+func (t *TimeUnit) nextTask() (task types.Task) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if len(t.tasks) == 0 {
+		return nil
+	}
+	task = t.tasks[0]
+	t.tasks = t.tasks[1:]
+	return task
 }
