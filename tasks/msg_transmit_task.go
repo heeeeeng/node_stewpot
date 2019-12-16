@@ -6,6 +6,7 @@ import (
 )
 
 type MsgTransmitTask struct {
+	taskType  TaskType
 	startTime int64
 	endTime   int64
 	from      types.Node
@@ -18,6 +19,7 @@ func NewMsgTransmitTask(startTime int64, from, to types.Node, msg types.Message)
 	endTime := startTime + delay
 
 	return &MsgTransmitTask{
+		taskType:  TaskTypeMsgTransmit,
 		startTime: startTime,
 		endTime:   endTime,
 		from:      from,
@@ -36,11 +38,13 @@ func (t *MsgTransmitTask) Process(tl types.Timeline) {
 	tl.ImportTask(recvTask.StartTime(), recvTask)
 }
 
+func (t *MsgTransmitTask) Type() int        { return int(t.taskType) }
 func (t *MsgTransmitTask) StartTime() int64 { return t.startTime }
 func (t *MsgTransmitTask) EndTime() int64   { return t.endTime }
 
 type MsgTransmitTaskJson struct {
 	Type      int    `json:"type"`
+	TypeDef   string `json:"type_def"`
 	StartTime int64  `json:"start_time"`
 	EndTime   int64  `json:"end_time"`
 	Source    string `json:"source"`
@@ -51,7 +55,8 @@ type MsgTransmitTaskJson struct {
 func (t *MsgTransmitTask) MarshalJSON() ([]byte, error) {
 	j := MsgTransmitTaskJson{}
 
-	j.Type = TaskTypeMsgTransmit
+	j.Type = int(t.taskType)
+	j.TypeDef = t.taskType.String()
 	j.StartTime = t.startTime
 	j.EndTime = t.endTime
 	j.Source = t.from.IP()

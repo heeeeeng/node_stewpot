@@ -7,6 +7,7 @@ type Timeline interface {
 }
 
 type Task interface {
+	Type() int
 	StartTime() int64
 	EndTime() int64
 	Process(tl Timeline)

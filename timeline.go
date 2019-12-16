@@ -68,16 +68,17 @@ func (tl *Timeline) SendNewMsg(node *Node, msg types.Message) int64 {
 }
 
 func (tl *Timeline) ImportTask(startTime int64, task types.Task) {
-	if startTime != tl.current.timestamp || startTime != tl.next.timestamp {
-		// TODO
-		// log out this situation, this should not happen.
+	if startTime != tl.current.timestamp && startTime != tl.next.timestamp {
+		fmt.Println(fmt.Sprintf("appendTask not curr or next, task start time: %d, curr: %d", task.StartTime(), tl.current.timestamp))
 		return
 	}
 	if startTime == tl.current.timestamp {
+		//fmt.Println(fmt.Sprintf("appendTask at curr: %d, curr: %d", task.StartTime(), tl.current.timestamp))
 		tl.current.appendTask(task)
 		return
 	}
 	if startTime == tl.next.timestamp {
+		//fmt.Println(fmt.Sprintf("appendTask at next: %d, curr: %d", task.StartTime(), tl.current.timestamp))
 		tl.next.appendTask(task)
 		return
 	}
@@ -108,8 +109,10 @@ func (tl *Timeline) loop() {
 			for {
 				task := tl.current.nextTask()
 				if task == nil {
+					//fmt.Println("nil task")
 					break
 				}
+				//fmt.Println("process task: ", tasks.TaskType(task.Type()).String())
 				task.Process(tl)
 			}
 
@@ -127,6 +130,7 @@ func (tl *Timeline) loop() {
 }
 
 type TimeUnit struct {
+	index     int
 	timestamp int64
 	tasks     []types.Task
 
@@ -135,6 +139,7 @@ type TimeUnit struct {
 
 func newTimeUnit(timestamp int64) *TimeUnit {
 	return &TimeUnit{
+		index:     0,
 		timestamp: timestamp,
 		tasks:     make([]types.Task, 0),
 	}
@@ -144,7 +149,6 @@ func (t *TimeUnit) appendTask(task types.Task) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	fmt.Println("appendTask")
 	t.tasks = append(t.tasks, task)
 }
 
@@ -155,7 +159,10 @@ func (t *TimeUnit) nextTask() (task types.Task) {
 	if len(t.tasks) == 0 {
 		return nil
 	}
-	task = t.tasks[0]
-	t.tasks = t.tasks[1:]
+	if t.index >= len(t.tasks) {
+		return nil
+	}
+	task = t.tasks[t.index]
+	t.index++
 	return task
 }

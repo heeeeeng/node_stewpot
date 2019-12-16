@@ -201,26 +201,26 @@ func newNodeCacheDB() *NodeCacheDB {
 }
 
 func (db *NodeCacheDB) Exist(data int64) bool {
-	if db.coldData > data {
+	if db.coldData >= data {
 		return true
 	}
-	if data-db.coldData > int64(len(db.hotData)) {
+	if data-db.coldData-1 >= int64(len(db.hotData)) {
 		return false
 	}
 	return db.hotData[data-db.coldData-1]
 }
 
 func (db *NodeCacheDB) Insert(data int64) {
-	if db.coldData > data {
-		return
-	}
-	if data-db.coldData <= int64(len(db.hotData)) {
-		db.hotData[data-db.coldData-1] = true
+	if db.coldData >= data {
 		return
 	}
 	delta := data - db.coldData
-	db.hotData = append(db.hotData, make([]bool, delta)...)
-	db.hotData[data-db.coldData-1] = true
+	if delta <= int64(len(db.hotData)) {
+		db.hotData[delta-1] = true
+		return
+	}
+	db.hotData = append(db.hotData, make([]bool, int(delta)-len(db.hotData))...)
+	db.hotData[delta-1] = true
 
 	// trim if too large
 	if len(db.hotData) >= 2*db.trimNum {

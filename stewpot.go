@@ -21,13 +21,16 @@ func NewStewpot() *Stewpot {
 	timeline := newTimeline(db)
 
 	s := &Stewpot{}
+	s.msg = 1
 	s.timeline = timeline
 
 	return s
 }
 
 func (s *Stewpot) InitNetwork(nodeNum int) {
-	loc := types.ConstLocations[rand.Intn(len(types.ConstLocations))]
+	locSet := []types.Location{types.LocCN, types.LocSEA, types.LocJP}
+	loc := locSet[rand.Intn(len(locSet))]
+
 	conf := NodeConfig{
 		IP:       fmt.Sprintf("%d_%s", 0, loc.Name),
 		Upload:   1024,
@@ -40,7 +43,7 @@ func (s *Stewpot) InitNetwork(nodeNum int) {
 	s.nodes = append(s.nodes, s.bootstrap)
 
 	for i := 1; i < nodeNum; i++ {
-		loc := types.ConstLocations[rand.Intn(len(types.ConstLocations))]
+		loc := locSet[rand.Intn(len(locSet))]
 		conf := NodeConfig{
 			IP:       fmt.Sprintf("%d_%s", i, loc.Name),
 			Upload:   1024,
@@ -76,4 +79,11 @@ func (s *Stewpot) GenerateMsg() types.Message {
 	s.msg++
 
 	return msg
+}
+
+func (s *Stewpot) SendNewMsg() {
+	node := s.nodes[rand.Intn(len(s.nodes))]
+	msg := s.GenerateMsg()
+	timestamp := s.timeline.SendNewMsg(node, msg)
+	fmt.Println("send msg at time: ", timestamp)
 }

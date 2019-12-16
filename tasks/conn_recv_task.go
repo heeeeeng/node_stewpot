@@ -6,6 +6,7 @@ import (
 )
 
 type ConnRecvTask struct {
+	taskType  TaskType
 	startTime int64
 	endTime   int64
 	sender    types.Node
@@ -15,6 +16,7 @@ type ConnRecvTask struct {
 
 func NewConnRecvTask(startTime int64, sender, recver types.Node, msg types.Message) *ConnRecvTask {
 	return &ConnRecvTask{
+		taskType:  TaskTypeConnRecv,
 		startTime: startTime,
 		endTime:   startTime,
 		sender:    sender,
@@ -28,11 +30,13 @@ func (t *ConnRecvTask) Process(tl types.Timeline) {
 	tl.ImportTask(t.startTime, task)
 }
 
+func (t *ConnRecvTask) Type() int        { return int(t.taskType) }
 func (t *ConnRecvTask) StartTime() int64 { return t.startTime }
 func (t *ConnRecvTask) EndTime() int64   { return t.endTime }
 
 type ConnRecvTaskJson struct {
 	Type      int    `json:"type"`
+	TypeDef   string `json:"type_def"`
 	StartTime int64  `json:"start_time"`
 	EndTime   int64  `json:"end_time"`
 	Sender    string `json:"sender"`
@@ -42,7 +46,8 @@ type ConnRecvTaskJson struct {
 
 func (t *ConnRecvTask) MarshalJSON() ([]byte, error) {
 	j := ConnRecvTaskJson{}
-	j.Type = TaskTypeConnRecv
+	j.Type = int(t.taskType)
+	j.TypeDef = t.taskType.String()
 	j.StartTime = t.startTime
 	j.EndTime = t.endTime
 	j.Sender = t.sender.IP()

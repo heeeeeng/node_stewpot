@@ -38,8 +38,6 @@ func (s *Stewpot) MarshalNodes() []byte {
 		for _, neighbor := range n.peers {
 			if neighbor.Out() {
 				linksMap[n.ip] = append(linksMap[n.ip], neighbor.RemoteIP())
-			} else {
-				linksMap[neighbor.RemoteIP()] = append(linksMap[neighbor.RemoteIP()], n.ip)
 			}
 		}
 	}
@@ -82,7 +80,9 @@ func (s *Stewpot) GetTimeUnit(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("GetTimeUnit request: ", timestamp)
 	timeUnit := s.timeline.GetTimeUnit(int64(timestamp))
-	fmt.Println(timeUnit.tasks)
+	if timeUnit == nil {
+		return
+	}
 	data, _ := json.Marshal(timeUnit.tasks)
 	w.Write(data)
 }

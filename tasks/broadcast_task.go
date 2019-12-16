@@ -6,6 +6,7 @@ import (
 )
 
 type BroadcastTask struct {
+	taskType  TaskType
 	startTime int64
 	endTime   int64
 	node      types.Node
@@ -14,6 +15,7 @@ type BroadcastTask struct {
 
 func NewBroadcastTask(startTime int64, node types.Node, msg types.Message) *BroadcastTask {
 	return &BroadcastTask{
+		taskType:  TaskTypeBroadcast,
 		startTime: startTime,
 		endTime:   startTime,
 		node:      node,
@@ -37,11 +39,13 @@ func (t *BroadcastTask) Process(tl types.Timeline) {
 	}
 }
 
+func (t *BroadcastTask) Type() int        { return int(t.taskType) }
 func (t *BroadcastTask) StartTime() int64 { return t.startTime }
 func (t *BroadcastTask) EndTime() int64   { return t.endTime }
 
 type BroadcastTaskJson struct {
 	Type      int    `json:"type"`
+	TypeDef   string `json:"type_def"`
 	StartTime int64  `json:"start_time"`
 	EndTime   int64  `json:"end_time"`
 	Node      string `json:"node"`
@@ -51,7 +55,8 @@ type BroadcastTaskJson struct {
 func (t *BroadcastTask) MarshalJSON() ([]byte, error) {
 	j := BroadcastTaskJson{}
 
-	j.Type = TaskTypeBroadcast
+	j.Type = int(t.taskType)
+	j.TypeDef = t.taskType.String()
 	j.StartTime = t.startTime
 	j.EndTime = t.endTime
 	j.Node = t.node.IP()

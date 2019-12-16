@@ -26,6 +26,8 @@ func main() {
 	stewpot.PrintOutNodes()
 	stewpot.Start()
 
+	//stewpot.SendNewMsg()
+
 	//time.Sleep(time.Second * 1000)
 
 	// server

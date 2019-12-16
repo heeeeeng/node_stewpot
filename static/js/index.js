@@ -3,15 +3,19 @@ window.onload = main;
 
 dom = document.getElementById("container");
 myChart = echarts.init(dom);
+links = {};
+nodesSet = {};
 
-var graph;
-var intervalID;
+let base_option;
+let graph;
+let intervalID;
 
 function main() {
     initChart();
 
     intervalID = window.setInterval(internalFunc, 500);
 
+    // sendMsg();
 }
 
 function initChart() {
@@ -22,23 +26,50 @@ function initChart() {
 
     graph = JSON.parse(xmlHttp.responseText);
 
-    option = null;
     myChart.showLoading();
     myChart.hideLoading();
 
-    graph.nodes.forEach(function (node) {
+    // graph.nodes.forEach(function (node) {
+    //     node.itemStyle = null;
+    //     node.symbolSize = 10;
+    //     // node.value = node.symbolSize;
+    //     // node.category = node.attributes.modularity_class;
+    //     // Use random x, y
+    //     node.x = node.y = null;
+    //     node.draggable = true;
+    // });
+
+    for (let i in graph.nodes) {
+        let node = graph.nodes[i];
+
         node.itemStyle = null;
         node.symbolSize = 10;
-        // node.value = node.symbolSize;
-        // node.category = node.attributes.modularity_class;
-        // Use random x, y
         node.x = node.y = null;
         node.draggable = true;
-    });
 
-    option = {
+        graph.nodes[i] = node;
+        nodesSet[node.name] = i;
+    }
+
+    for (let i in graph.links) {
+        let link = graph.links[i];
+        let source = link.source;
+        let target = link.target;
+
+        if (links[source] == null) {
+            links[source] = {};
+        }
+        links[source][target] = i;
+
+        if (links[target] == null) {
+            links[target] = {};
+        }
+        links[target][source] = i;
+    }
+
+    base_option = {
         title: {
-            text: 'Les Miserables',
+            text: 'OG Node Stewpot',
             subtext: 'Default layout',
             top: 'bottom',
             left: 'right'
@@ -47,12 +78,12 @@ function initChart() {
         animation: false,
         series : [
             {
-                name: 'Les Miserables',
+                name: 'OG Node Stewpot',
                 type: 'graph',
                 layout: 'force',
                 data: graph.nodes,
                 links: graph.links,
-                draggable: true,
+                // draggable: true,
                 focusNodeAdjacency: true,
                 // categories: categories,
                 roam: true,
@@ -73,12 +104,12 @@ function initChart() {
         ]
     };
 
-    myChart.setOption(option);
-
-    myChart.setOption(option);
-    if (option && typeof option === "object") {
-        myChart.setOption(option, true);
+    myChart.setOption(base_option);
+    if (base_option && typeof base_option === "object") {
+        myChart.setOption(base_option, true);
     }
+
+    console.log("init: ", base_option.series[0]);
 
 }
 
@@ -99,8 +130,6 @@ function internalFunc() {
 }
 
 function switchToNoneLayout() {
-    option = myChart.getOption();
-
     nodes = myChart.getModel().getSeriesByIndex(0).preservedPoints;
     for (var i=0; i<graph.nodes.length; i++) {
         var nodeName = graph.nodes[i].name;
@@ -108,27 +137,102 @@ function switchToNoneLayout() {
         graph.nodes[i].y = nodes[nodeName][1];
     }
 
-    option.series[0].layout = "none";
-    option.series[0].data = graph.nodes;
-    option.series[0].force = null;
+    base_option = myChart.getOption();
+    base_option.series[0].layout = "none";
+    base_option.series[0].data = graph.nodes;
+    base_option.series[0].force = null;
 
-    myChart.setOption(option);
+    myChart.setOption(base_option);
 
-    node_0 = myChart.getModel().getSeriesByIndex(0).preservedPoints[graph.nodes[0].name];
+    // node_0 = myChart.getModel().getSeriesByIndex(0).preservedPoints[graph.nodes[0].name];
     console.log("switched to none");
 
     sendMsg();
 }
 
-function sendMsg() {
-    var xmlHttp = new XMLHttpRequest();
+let node_color_old = "red";
+let node_color_new = "yellow";
+let node_color_set = [ "red", "yellow", "blue", "green", "black" ];
+
+async function sendMsg() {
+    // generate new node color
+    while (true) {
+        if (node_color_new !== node_color_old) {
+            break;
+        }
+        node_color_new = node_color_set[Math.floor(Math.random()*node_color_set.length)];
+    }
+    node_color_old = node_color_new;
+
+    let xmlHttp = new XMLHttpRequest();
     xmlHttp.open( "GET", "/send_msg", false ); // false for synchronous request
     xmlHttp.send( null );
 
     console.log(xmlHttp.responseText);
-    msgStartTime = bin2String(xmlHttp.responseText);
-    console.log(msgStartTime);
+    let t = parseInt(xmlHttp.responseText);
+
+    while (getTimeUnit(t)) {
+        await sleep(10);
+        t = t+1;
+    }
+    // console.log(myChart.getOption());
 }
+
+function getTimeUnit(t) {
+    console.log("t: ", t);
+
+    let xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "/time_unit?time=" + t, false ); // false for synchronous request
+    xmlHttp.send( null );
+
+    let time_unit = JSON.parse(xmlHttp.responseText);
+    if (time_unit.length === 0) {
+        return false;
+    }
+
+    let option = JSON.parse(JSON.stringify(base_option));
+    let graph_nodes = base_option.series[0].data;
+    let graph_links = option.series[0].links;
+    for (let i in time_unit) {
+        let task = time_unit[i];
+        if (task.type === TASK_TYPE_CONN_RECV) {
+            let recver = task.recver;
+            graph_nodes[nodesSet[recver]].itemStyle = {
+                color: node_color_new
+            };
+            continue
+        }
+        if (task.type === TASK_TYPE_MSG_TRANSMIT) {
+            let linkIndex = links[task.source][task.target];
+            graph_links[linkIndex].lineStyle = {
+                color: "red",
+                width: 2,
+                opacity: 0.3
+            };
+            continue;
+        }
+    }
+
+    option.series[0].data = graph_nodes;
+    option.series[0].links = graph_links;
+    myChart.setOption(option);
+
+    return true;
+}
+
+function highLightLink(source, target, base_links) {
+    let linkIndex = links[source][target];
+    let link = base_links[linkIndex];
+
+    link.lineStyle = {
+        color: "red"
+    };
+    base_links[linkIndex] = link;
+    return base_links;
+}
+
+const TASK_TYPE_CONN_RECV = 1;
+const TASK_TYPE_MSG_TRANSMIT = 5;
 
 function bin2String(array) {
     var result = "";
@@ -138,3 +242,6 @@ function bin2String(array) {
     return result;
 }
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
