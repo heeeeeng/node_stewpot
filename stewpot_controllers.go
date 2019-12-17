@@ -78,7 +78,7 @@ func (s *Stewpot) GetTimeUnit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	fmt.Println("GetTimeUnit request: ", timestamp)
+	//fmt.Println("GetTimeUnit request: ", timestamp)
 	timeUnit := s.timeline.GetTimeUnit(int64(timestamp))
 	if timeUnit == nil {
 		return

@@ -22,7 +22,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	stewpot := NewStewpot()
-	stewpot.InitNetwork(100)
+	stewpot.InitNetwork(200)
 	stewpot.PrintOutNodes()
 	stewpot.Start()
 

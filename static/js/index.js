@@ -172,7 +172,7 @@ async function sendMsg() {
     let t = parseInt(xmlHttp.responseText);
 
     while (getTimeUnit(t)) {
-        await sleep(10);
+        await sleep(1);
         t = t+1;
     }
     // console.log(myChart.getOption());

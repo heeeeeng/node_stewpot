@@ -28,7 +28,7 @@ func NewStewpot() *Stewpot {
 }
 
 func (s *Stewpot) InitNetwork(nodeNum int) {
-	locSet := []types.Location{types.LocCN, types.LocSEA, types.LocJP}
+	locSet := []types.Location{types.LocCN, types.LocSEA, types.LocJP, types.LocRU, types.LocNA, types.LocEU}
 	loc := locSet[rand.Intn(len(locSet))]
 
 	conf := NodeConfig{

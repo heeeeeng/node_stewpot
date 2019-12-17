@@ -10,7 +10,7 @@ var (
 		Name: "CN",
 		Delays: map[string]int64{
 			"CN":  50,
-			"NA":  500,
+			"NA":  300,
 			"EU":  300,
 			"RU":  150,
 			"SEA": 100,
@@ -20,7 +20,7 @@ var (
 	LocNA = Location{
 		Name: "NA",
 		Delays: map[string]int64{
-			"CN":  500,
+			"CN":  300,
 			"NA":  50,
 			"EU":  200,
 			"RU":  400,
