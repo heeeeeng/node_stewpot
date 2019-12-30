@@ -27,16 +27,28 @@ func (t *BroadcastTask) Process(tl types.Timeline) {
 	if t.node == nil {
 		return
 	}
+	n := t.node
 
+	var destinations []types.Node
 	for _, p := range t.node.Peers() {
 		if t.msg.Source != nil && p.RemoteIP() == t.msg.Source.IP() {
 			continue
 		}
+
+		destinations = append(destinations, p.GetNode())
+	}
+
+	// calculate bandwidth usage time.
+	totalMsgSize := t.msg.Size.ToInt64() * int64(len(destinations))
+	bandwidthTimeUsage := totalMsgSize / int64(n.BandwidthInMillisecond())
+
+	for _, dest := range destinations {
 		msg := t.msg
 		msg.Source = t.node
-		task := NewMsgTransmitTask(t.startTime, t.node, p.GetNode(), msg)
+		task := NewMsgTransmitUploadTask(t.startTime, bandwidthTimeUsage, t.node, dest, msg)
 		tl.ImportTask(task.StartTime(), task)
 	}
+
 }
 
 func (t *BroadcastTask) Type() int        { return int(t.taskType) }

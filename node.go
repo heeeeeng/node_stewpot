@@ -32,14 +32,14 @@ type Node struct {
 }
 
 type Bandwidth struct {
-	Upload   int
-	Download int
+	Upload   types.FileSize
+	Download types.FileSize
 }
 
 type NodeConfig struct {
 	IP       string
-	Upload   int
-	Download int
+	Upload   types.FileSize
+	Download types.FileSize
 	MaxIn    int
 	MaxOut   int
 }
@@ -86,6 +86,14 @@ func (n *Node) Location() types.Location {
 
 func (n *Node) Perf() int {
 	return n.perf
+}
+
+func (n *Node) Bandwidth() types.FileSize {
+	return n.bandwidth.Upload
+}
+
+func (n *Node) BandwidthInMillisecond() types.FileSize {
+	return n.bandwidth.Upload / 1000
 }
 
 func (n *Node) Peers() map[string]types.Peer {

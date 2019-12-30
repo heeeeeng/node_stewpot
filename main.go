@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/heeeeeng/node_stewpot/types"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io"
@@ -22,17 +23,15 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	stewpot := NewStewpot()
-	stewpot.InitNetwork(200)
-	stewpot.PrintOutNodes()
+	stewpot.InitNetwork(200, 8, 4, 100*types.MB)
 	stewpot.Start()
-
-	//stewpot.SendNewMsg()
 
 	//time.Sleep(time.Second * 1000)
 
 	// server
 	http.HandleFunc("/", stewpot.MainPage)
 	http.HandleFunc("/static/", stewpot.StaticController)
+	http.HandleFunc("/restart", stewpot.RestartController)
 	http.HandleFunc("/graph", stewpot.GetNetworkGraph)
 	http.HandleFunc("/send_msg", stewpot.SendMsg)
 	http.HandleFunc("/time_unit", stewpot.GetTimeUnit)

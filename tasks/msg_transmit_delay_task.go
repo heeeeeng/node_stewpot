@@ -5,7 +5,7 @@ import (
 	"github.com/heeeeeng/node_stewpot/types"
 )
 
-type MsgTransmitTask struct {
+type MsgTransmitDelayTask struct {
 	taskType  TaskType
 	startTime int64
 	endTime   int64
@@ -14,12 +14,12 @@ type MsgTransmitTask struct {
 	msg       types.Message
 }
 
-func NewMsgTransmitTask(startTime int64, from, to types.Node, msg types.Message) *MsgTransmitTask {
+func NewMsgTransmitDelayTask(startTime int64, from, to types.Node, msg types.Message) *MsgTransmitDelayTask {
 	delay := from.GetDelay(to.Location())
 	endTime := startTime + delay
 
-	return &MsgTransmitTask{
-		taskType:  TaskTypeMsgTransmit,
+	return &MsgTransmitDelayTask{
+		taskType:  TaskTypeMsgTransmitDelay,
 		startTime: startTime,
 		endTime:   endTime,
 		from:      from,
@@ -28,7 +28,7 @@ func NewMsgTransmitTask(startTime int64, from, to types.Node, msg types.Message)
 	}
 }
 
-func (t *MsgTransmitTask) Process(tl types.Timeline) {
+func (t *MsgTransmitDelayTask) Process(tl types.Timeline) {
 	if t.endTime > tl.CurrentTime() {
 		tl.ImportTask(tl.NextTime(), t)
 		return
@@ -38,11 +38,11 @@ func (t *MsgTransmitTask) Process(tl types.Timeline) {
 	tl.ImportTask(recvTask.StartTime(), recvTask)
 }
 
-func (t *MsgTransmitTask) Type() int        { return int(t.taskType) }
-func (t *MsgTransmitTask) StartTime() int64 { return t.startTime }
-func (t *MsgTransmitTask) EndTime() int64   { return t.endTime }
+func (t *MsgTransmitDelayTask) Type() int        { return int(t.taskType) }
+func (t *MsgTransmitDelayTask) StartTime() int64 { return t.startTime }
+func (t *MsgTransmitDelayTask) EndTime() int64   { return t.endTime }
 
-type MsgTransmitTaskJson struct {
+type MsgTransmitDelayTaskJson struct {
 	Type      int    `json:"type"`
 	TypeDef   string `json:"type_def"`
 	StartTime int64  `json:"start_time"`
@@ -52,8 +52,8 @@ type MsgTransmitTaskJson struct {
 	Msg       int64  `json:"msg"`
 }
 
-func (t *MsgTransmitTask) MarshalJSON() ([]byte, error) {
-	j := MsgTransmitTaskJson{}
+func (t *MsgTransmitDelayTask) MarshalJSON() ([]byte, error) {
+	j := MsgTransmitDelayTaskJson{}
 
 	j.Type = int(t.taskType)
 	j.TypeDef = t.taskType.String()

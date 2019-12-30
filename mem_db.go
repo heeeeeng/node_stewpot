@@ -1,6 +1,9 @@
 package main
 
-import "sync"
+import (
+	"github.com/heeeeeng/node_stewpot/types"
+	"sync"
+)
 
 type Record struct {
 	TaskType  int   `json:"task_type"`
@@ -10,6 +13,10 @@ type Record struct {
 type MemDB struct {
 	latestTime int64
 	timeline   map[int64]*TimeUnit
+
+	tasks map[int64][]types.Task
+
+	//snapshots map[int64]
 
 	mu sync.RWMutex
 }

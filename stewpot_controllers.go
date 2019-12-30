@@ -20,6 +20,27 @@ func (s *Stewpot) StaticController(w http.ResponseWriter, r *http.Request) {
 	fs.ServeHTTP(w, r)
 }
 
+func (s *Stewpot) RestartController(w http.ResponseWriter, r *http.Request) {
+	nodeNum, err := urlParamToInt(r, "node_num")
+	if err != nil {
+		return
+	}
+	maxIn, err := urlParamToInt(r, "max_in")
+	if err != nil {
+		return
+	}
+	maxOut, err := urlParamToInt(r, "max_out")
+	if err != nil {
+		return
+	}
+	bandwidth, err := urlParamToInt(r, "bandwidth")
+	if err != nil {
+		return
+	}
+
+	s.RestartNetwork(nodeNum, maxIn, maxOut, types.FileSize(bandwidth))
+}
+
 func (s *Stewpot) GetNetworkGraph(w http.ResponseWriter, r *http.Request) {
 	w.Write(s.MarshalNodes())
 }
@@ -85,4 +106,16 @@ func (s *Stewpot) GetTimeUnit(w http.ResponseWriter, r *http.Request) {
 	}
 	data, _ := json.Marshal(timeUnit.tasks)
 	w.Write(data)
+}
+
+func urlParamToInt(r *http.Request, key string) (int, error) {
+	paramStr := r.URL.Query()[key]
+	if len(paramStr) == 0 {
+		return 0, fmt.Errorf("cannot find parameter: %s", key)
+	}
+	param, err := strconv.Atoi(paramStr[0])
+	if err != nil {
+		return param, fmt.Errorf("cannot format key %s from string to int: %v", key, err)
+	}
+	return param, nil
 }
