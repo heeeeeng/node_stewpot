@@ -19,6 +19,7 @@ type Node interface {
 	Location() Location
 	Bandwidth() FileSize
 	BandwidthInMillisecond() FileSize
+	BestPeersLimit() int
 	Perf() int
 	Peers() map[string]Peer
 	GetDelay(location Location) int64

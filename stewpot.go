@@ -27,7 +27,7 @@ func NewStewpot() *Stewpot {
 	return s
 }
 
-func (s *Stewpot) RestartNetwork(nodeNum, maxIn, maxOut int, bandwidth types.FileSize) {
+func (s *Stewpot) RestartNetwork(nodeNum, maxIn, maxOut, maxBest int, bandwidth types.FileSize) {
 	s.Stop()
 
 	db := newMemDB()
@@ -38,11 +38,11 @@ func (s *Stewpot) RestartNetwork(nodeNum, maxIn, maxOut int, bandwidth types.Fil
 	s.nodes = make([]*Node, 0)
 	s.bootstrap = nil
 
-	s.InitNetwork(nodeNum, maxIn, maxOut, bandwidth)
+	s.InitNetwork(nodeNum, maxIn, maxOut, maxBest, bandwidth)
 	s.Start()
 }
 
-func (s *Stewpot) InitNetwork(nodeNum, maxIn, maxOut int, bandwidth types.FileSize) {
+func (s *Stewpot) InitNetwork(nodeNum, maxIn, maxOut, maxBest int, bandwidth types.FileSize) {
 	locSet := []types.Location{types.LocCN, types.LocSEA, types.LocJP, types.LocRU, types.LocNA, types.LocEU}
 	loc := locSet[rand.Intn(len(locSet))]
 
@@ -52,6 +52,7 @@ func (s *Stewpot) InitNetwork(nodeNum, maxIn, maxOut int, bandwidth types.FileSi
 		Download: bandwidth,
 		MaxIn:    maxIn,
 		MaxOut:   maxOut,
+		MaxBest:  maxBest,
 	}
 	perf := 1024
 	s.bootstrap = NewNode(conf, loc, perf)
@@ -88,7 +89,7 @@ func (s *Stewpot) GenerateMsg() types.Message {
 	defer s.msgLocker.Unlock()
 
 	// TODO msg size should not be hard coded here
-	msg := types.NewMessage(nil, 1, s.msg, 256*types.Byte)
+	msg := types.NewMessage(nil, 1, s.msg, 1*types.MB)
 	s.msg++
 
 	return msg

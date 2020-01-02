@@ -37,8 +37,9 @@ func (s *Stewpot) RestartController(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+	maxBest := 3
 
-	s.RestartNetwork(nodeNum, maxIn, maxOut, types.FileSize(bandwidth))
+	s.RestartNetwork(nodeNum, maxIn, maxOut, maxBest, types.FileSize(bandwidth))
 }
 
 func (s *Stewpot) GetNetworkGraph(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +57,7 @@ func (s *Stewpot) MarshalNodes() []byte {
 		}
 		nodesJson = append(nodesJson, graphNode)
 
-		for _, neighbor := range n.peers {
+		for _, neighbor := range n.Peers() {
 			if neighbor.Out() {
 				linksMap[n.ip] = append(linksMap[n.ip], neighbor.RemoteIP())
 			}

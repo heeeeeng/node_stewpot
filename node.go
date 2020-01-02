@@ -19,12 +19,7 @@ type Node struct {
 	perf      int
 
 	// peer related
-	peerNumIn  int
-	peerNumOut int
-	maxIn      int
-	maxOut     int
-	blackList  map[string]struct{}
-	peers      map[string]types.Peer
+	np *nodePeers
 
 	CpuLocked bool
 
@@ -42,6 +37,7 @@ type NodeConfig struct {
 	Download types.FileSize
 	MaxIn    int
 	MaxOut   int
+	MaxBest  int
 }
 
 func NewNode(config NodeConfig, loc types.Location, perf int) *Node {
@@ -53,17 +49,7 @@ func NewNode(config NodeConfig, loc types.Location, perf int) *Node {
 	n.bandwidth = Bandwidth{Upload: config.Upload, Download: config.Download}
 	n.location = loc
 	n.perf = perf
-
-	n.maxIn = config.MaxIn
-	n.maxOut = config.MaxOut
-	n.peerNumIn = 0
-	n.peerNumOut = 0
-
-	n.blackList = make(map[string]struct{})
-	n.blackList[n.ip] = struct{}{}
-
-	n.peers = make(map[string]types.Peer)
-
+	n.np = newNodePeers(config.MaxIn, config.MaxOut, config.MaxBest, n.ip)
 	n.CpuLocked = false
 
 	closeC := make(chan bool)
@@ -96,8 +82,12 @@ func (n *Node) BandwidthInMillisecond() types.FileSize {
 	return n.bandwidth.Upload / 1000
 }
 
+func (n *Node) BestPeersLimit() int {
+	return n.np.maxBest
+}
+
 func (n *Node) Peers() map[string]types.Peer {
-	return n.peers
+	return n.np.peers
 }
 
 func (n *Node) GetDelay(loc types.Location) int64 {
@@ -128,42 +118,39 @@ func (n *Node) ReleaseCpu() {
 }
 
 func (n *Node) AddPeer(p *Peer) {
-	n.peers[p.ipRemote] = p
-	if p.out {
-		n.peerNumOut++
-	} else {
-		n.peerNumIn++
-	}
+	n.np.addPeers(p)
 }
 
 func (n *Node) ConnectIn(remoteNode types.Node) (bool, []types.Node) {
-	fmt.Println(fmt.Sprintf("[ConnectIn]\t node %s connect in %s", remoteNode.IP(), n.ip))
+	//fmt.Println(fmt.Sprintf("[ConnectIn]\t node %s connect in %s", remoteNode.IP(), n.ip))
 	var connected bool
 
-	if n.peerNumIn < n.maxIn {
+	if n.np.canConnectIn() {
 		peer := NewPeer(n.ip, remoteNode.IP(), false, remoteNode)
-		n.AddPeer(peer)
-		n.blackList[remoteNode.IP()] = struct{}{}
+		n.np.addPeers(peer)
+		n.np.addBlackList(remoteNode.IP())
 		connected = true
 	}
 
-	fmt.Println(fmt.Sprintf("start return neighbor: %s", n.String()))
-	var neighbors []types.Node
-	for _, p := range n.peers {
-		neighbors = append(neighbors, p.GetNode())
-	}
+	//fmt.Println(fmt.Sprintf("start return neighbor: %s", n.String()))
+	//var neighbors []types.Node
+	//for _, p := range n.Peers() {
+	//	neighbors = append(neighbors, p.GetNode())
+	//}
+
+	neighbors := n.findBestPeers(remoteNode)
 	return connected, neighbors
 }
 
 func (n *Node) TryConnect(remoteNode types.Node) {
-	fmt.Println(fmt.Sprintf("[TryConnect]\t node %s try to connect: %s", n.ip, remoteNode.IP()))
+	//fmt.Println(fmt.Sprintf("[TryConnect]\t node %s try to connect: %s", n.ip, remoteNode.IP()))
 
-	if _, inBlackList := n.blackList[remoteNode.IP()]; inBlackList {
+	if n.np.inBlackList(remoteNode.IP()) {
 		return
 	}
-	n.blackList[remoteNode.IP()] = struct{}{}
+	n.np.addBlackList(remoteNode.IP())
 
-	if n.peerNumOut >= n.maxOut {
+	if !n.np.canConnectOut() {
 		return
 	}
 	connected, neighbors := remoteNode.ConnectIn(n)
@@ -173,16 +160,46 @@ func (n *Node) TryConnect(remoteNode types.Node) {
 	}
 
 	for _, neighbor := range neighbors {
-		if n.peerNumOut >= n.maxOut {
+		if !n.np.canConnectOut() {
 			return
 		}
 		n.TryConnect(neighbor)
 	}
 }
 
+func (n *Node) findBestPeers(remoteNode types.Node) []types.Node {
+	if len(n.Peers()) == 0 {
+		return nil
+	}
+	//fmt.Println("peers: ", n.Peers())
+	var neighbors []types.Node
+	for _, p := range n.Peers() {
+		neighbors = append(neighbors, p.GetNode())
+	}
+
+	var bestPeers []types.Node
+	for i := 0; i < remoteNode.BestPeersLimit(); i++ {
+		if len(neighbors) == 0 {
+			break
+		}
+		prevLag := neighbors[0].GetDelay(remoteNode.Location())
+		for k, neighbor := range neighbors {
+			curLag := neighbor.GetDelay(remoteNode.Location())
+			if curLag > prevLag {
+				neighbors[k-1], neighbors[k] = neighbors[k], neighbors[k-1]
+			} else {
+				prevLag = curLag
+			}
+		}
+		bestPeers = append(bestPeers, neighbors[len(neighbors)-1])
+		neighbors = neighbors[:len(neighbors)-1]
+	}
+	return bestPeers
+}
+
 func (n *Node) String() string {
 	var neighbors []string
-	for _, p := range n.peers {
+	for _, p := range n.Peers() {
 		neighborInfo := p.RemoteIP()
 		if p.Out() {
 			neighborInfo += "_out"
@@ -192,6 +209,60 @@ func (n *Node) String() string {
 		neighbors = append(neighbors, neighborInfo)
 	}
 	return fmt.Sprintf("{ ip: %s, neighbors: %s }", n.ip, strings.Join(neighbors, ", "))
+}
+
+type nodePeers struct {
+	maxIn   int // max connect in peers allowed
+	maxOut  int // max connect out peers allowed
+	maxBest int // max best peers (according to delays)
+
+	// indicators
+	connIn    int
+	connOut   int
+	peers     map[string]types.Peer
+	blackList map[string]struct{}
+}
+
+func newNodePeers(maxIn, maxOut, maxBest int, selfIP string) *nodePeers {
+	np := &nodePeers{}
+
+	np.maxIn = maxIn
+	np.maxOut = maxOut
+	np.maxBest = maxBest
+	np.connIn = 0
+	np.connOut = 0
+	np.peers = make(map[string]types.Peer)
+
+	np.blackList = make(map[string]struct{})
+	np.blackList[selfIP] = struct{}{}
+
+	return np
+}
+
+func (np *nodePeers) addPeers(p *Peer) {
+	np.peers[p.ipRemote] = p
+	if p.out {
+		np.connOut++
+	} else {
+		np.connIn++
+	}
+}
+
+func (np *nodePeers) addBlackList(ip string) {
+	np.blackList[ip] = struct{}{}
+}
+
+func (np *nodePeers) inBlackList(ip string) bool {
+	_, in := np.blackList[ip]
+	return in
+}
+
+func (np *nodePeers) canConnectIn() bool {
+	return np.connIn < np.maxIn
+}
+
+func (np *nodePeers) canConnectOut() bool {
+	return np.connOut < np.maxOut
 }
 
 type NodeCacheDB struct {

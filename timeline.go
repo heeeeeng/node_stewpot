@@ -5,15 +5,16 @@ import (
 	"github.com/heeeeeng/node_stewpot/tasks"
 	"github.com/heeeeeng/node_stewpot/types"
 	"sync"
-	"time"
 )
 
 type Timeline struct {
 	timestamp int64
 
-	current *TimeUnit
-	next    *TimeUnit
-	db      *MemDB
+	current  *TimeUnit
+	next     *TimeUnit
+	nextChan chan *TimeUnit
+
+	db *MemDB
 
 	mu    sync.RWMutex
 	close chan struct{}
@@ -24,7 +25,9 @@ func newTimeline(db *MemDB) *Timeline {
 
 	t.timestamp = 0
 	t.current = newTimeUnit(t.timestamp)
-	t.next = newTimeUnit(t.timestamp + 1)
+	t.next = nil
+	//t.next = newTimeUnit(t.timestamp + 1)
+	t.nextChan = make(chan *TimeUnit)
 	t.db = db
 
 	t.close = make(chan struct{})
@@ -68,18 +71,26 @@ func (tl *Timeline) SendNewMsg(node *Node, msg types.Message) int64 {
 }
 
 func (tl *Timeline) ImportTask(startTime int64, task types.Task) {
-	if startTime != tl.current.timestamp && startTime != tl.next.timestamp {
+	if startTime != tl.timestamp && startTime != tl.timestamp+1 {
 		fmt.Println(fmt.Sprintf("appendTask not curr or next, task start time: %d, curr: %d", task.StartTime(), tl.current.timestamp))
 		return
 	}
-	if startTime == tl.current.timestamp {
+	if startTime == tl.timestamp {
 		//fmt.Println(fmt.Sprintf("appendTask at curr: %d, curr: %d", task.StartTime(), tl.current.timestamp))
 		tl.current.appendTask(task)
 		return
 	}
-	if startTime == tl.next.timestamp {
-		//fmt.Println(fmt.Sprintf("appendTask at next: %d, curr: %d", task.StartTime(), tl.current.timestamp))
-		tl.next.appendTask(task)
+	if startTime == tl.timestamp+1 {
+		//fmt.Println(fmt.Sprintf("appendTask at next: %d, curr: %d, task: %s", task.StartTime(), tl.current.timestamp, tasks.TaskType(task.Type()).String()))
+		if tl.next == nil {
+			//fmt.Println("next is nil")
+			tl.next = newTimeUnit(tl.timestamp + 1)
+			tl.next.appendTask(task)
+			go func() { tl.nextChan <- tl.next }()
+		} else {
+			//fmt.Println("append task: ", tasks.TaskType(task.Type()).String())
+			tl.next.appendTask(task)
+		}
 		return
 	}
 	return
@@ -101,30 +112,27 @@ func (tl *Timeline) loop() {
 		case <-tl.close:
 			return
 
-		default:
+		case tl.current = <-tl.nextChan:
 			if tl.current == nil {
 				continue
 			}
+			tl.next = nil
+
+			fmt.Println("start processing timestamp: ", tl.current.timestamp)
 
 			for {
 				task := tl.current.nextTask()
 				if task == nil {
-					//fmt.Println("nil task")
 					break
 				}
-				//fmt.Println("process task: ", tasks.TaskType(task.Type()).String())
 				task.Process(tl)
 			}
 
 			tl.mu.Lock()
 			tl.db.Insert(tl.current)
 			tl.timestamp++
-			tl.current = tl.next
-			tl.next = newTimeUnit(tl.timestamp + 1)
 
 			tl.mu.Unlock()
-
-			time.Sleep(time.Millisecond)
 		}
 	}
 }
