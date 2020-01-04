@@ -84,12 +84,11 @@ func (s *Stewpot) PrintOutNodes() {
 	}
 }
 
-func (s *Stewpot) GenerateMsg() types.Message {
+func (s *Stewpot) GenerateMsg(msgSize types.FileSize) types.Message {
 	s.msgLocker.Lock()
 	defer s.msgLocker.Unlock()
 
-	// TODO msg size should not be hard coded here
-	msg := types.NewMessage(nil, 1, s.msg, 1*types.MB)
+	msg := types.NewMessage(nil, 1, s.msg, msgSize)
 	s.msg++
 
 	return msg
@@ -97,7 +96,7 @@ func (s *Stewpot) GenerateMsg() types.Message {
 
 func (s *Stewpot) SendNewMsg() {
 	node := s.nodes[rand.Intn(len(s.nodes))]
-	msg := s.GenerateMsg()
+	msg := s.GenerateMsg(types.DefualtMsgSize)
 	timestamp := s.timeline.SendNewMsg(node, msg)
 	fmt.Println("send msg at time: ", timestamp)
 }

@@ -1,5 +1,9 @@
 package types
 
+const (
+	DefualtMsgSize = 256 * Byte
+)
+
 type Message struct {
 	Source     Node
 	Difficulty int

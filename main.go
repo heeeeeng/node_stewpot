@@ -26,7 +26,7 @@ func main() {
 	stewpot.InitNetwork(200, 8, 4, 3, 100*types.MB)
 	stewpot.Start()
 
-	stewpot.SendNewMsg()
+	//stewpot.SendNewMsg()
 
 	//time.Sleep(time.Second * 1000)
 

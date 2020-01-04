@@ -97,13 +97,7 @@ func (tl *Timeline) ImportTask(startTime int64, task types.Task) {
 }
 
 func (tl *Timeline) GetTimeUnit(t int64) *TimeUnit {
-	if t == tl.current.timestamp {
-		return tl.current
-	} else if t == tl.next.timestamp {
-		return tl.next
-	} else {
-		return tl.db.Get(t)
-	}
+	return tl.db.Get(t)
 }
 
 func (tl *Timeline) loop() {

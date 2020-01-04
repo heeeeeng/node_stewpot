@@ -132,12 +132,6 @@ func (n *Node) ConnectIn(remoteNode types.Node) (bool, []types.Node) {
 		connected = true
 	}
 
-	//fmt.Println(fmt.Sprintf("start return neighbor: %s", n.String()))
-	//var neighbors []types.Node
-	//for _, p := range n.Peers() {
-	//	neighbors = append(neighbors, p.GetNode())
-	//}
-
 	neighbors := n.findBestPeers(remoteNode)
 	return connected, neighbors
 }
