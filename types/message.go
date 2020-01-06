@@ -8,10 +8,10 @@ type Message struct {
 	Source     Node
 	Difficulty int
 	ID         int64
-	Size       FileSize
+	Size       int64
 }
 
-func NewMessage(source Node, d int, id int64, size FileSize) Message {
+func NewMessage(source Node, d int, id int64, size int64) Message {
 	return Message{
 		Source:     source,
 		Difficulty: d,

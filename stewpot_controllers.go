@@ -15,12 +15,12 @@ func (s *Stewpot) MainPage(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, "hello!")
 }
 
-func (s *Stewpot) StaticController(w http.ResponseWriter, r *http.Request) {
+func (s *Stewpot) CtrlStatic(w http.ResponseWriter, r *http.Request) {
 	fs := http.FileServer(http.Dir("./"))
 	fs.ServeHTTP(w, r)
 }
 
-func (s *Stewpot) RestartController(w http.ResponseWriter, r *http.Request) {
+func (s *Stewpot) CtrlRestart(w http.ResponseWriter, r *http.Request) {
 	nodeNum, err := urlParamToInt(r, "node_num")
 	if err != nil {
 		return
@@ -39,10 +39,10 @@ func (s *Stewpot) RestartController(w http.ResponseWriter, r *http.Request) {
 	}
 	maxBest := 3
 
-	s.RestartNetwork(nodeNum, maxIn, maxOut, maxBest, types.FileSize(bandwidth))
+	s.RestartNetwork(nodeNum, maxIn, maxOut, maxBest, int64(bandwidth), nil)
 }
 
-func (s *Stewpot) GetNetworkGraph(w http.ResponseWriter, r *http.Request) {
+func (s *Stewpot) CtrlGetNetworkGraph(w http.ResponseWriter, r *http.Request) {
 	w.Write(s.MarshalNodes())
 }
 
@@ -81,9 +81,9 @@ func (s *Stewpot) MarshalNodes() []byte {
 	return graphData
 }
 
-func (s *Stewpot) SendMsg(w http.ResponseWriter, r *http.Request) {
+func (s *Stewpot) CtrlSendMsg(w http.ResponseWriter, r *http.Request) {
 	node := s.nodes[rand.Intn(len(s.nodes))]
-	msg := s.GenerateMsg()
+	msg := s.GenerateMsg(types.DefualtMsgSize)
 	timestamp := s.timeline.SendNewMsg(node, msg)
 	fmt.Println(timestamp)
 	w.Write([]byte(strconv.FormatInt(timestamp, 10)))
@@ -91,7 +91,7 @@ func (s *Stewpot) SendMsg(w http.ResponseWriter, r *http.Request) {
 
 type Tasks []types.Task
 
-func (s *Stewpot) GetTimeUnit(w http.ResponseWriter, r *http.Request) {
+func (s *Stewpot) CtrlGetTimeUnit(w http.ResponseWriter, r *http.Request) {
 	timestamps := r.URL.Query()["time"]
 	if len(timestamps) == 0 {
 		return
@@ -100,7 +100,7 @@ func (s *Stewpot) GetTimeUnit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	//fmt.Println("GetTimeUnit request: ", timestamp)
+	//fmt.Println("CtrlGetTimeUnit request: ", timestamp)
 	timeUnit := s.timeline.GetTimeUnit(int64(timestamp))
 	if timeUnit == nil {
 		return

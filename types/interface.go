@@ -17,8 +17,8 @@ type Task interface {
 type Node interface {
 	IP() string
 	Location() Location
-	Bandwidth() FileSize
-	BandwidthInMillisecond() FileSize
+	Bandwidth() int64
+	BandwidthInMillisecond() int64
 	BestPeersLimit() int
 	Perf() int
 	Peers() map[string]Peer

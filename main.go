@@ -32,11 +32,11 @@ func main() {
 
 	// server
 	http.HandleFunc("/", stewpot.MainPage)
-	http.HandleFunc("/static/", stewpot.StaticController)
-	http.HandleFunc("/restart", stewpot.RestartController)
-	http.HandleFunc("/graph", stewpot.GetNetworkGraph)
-	http.HandleFunc("/send_msg", stewpot.SendMsg)
-	http.HandleFunc("/time_unit", stewpot.GetTimeUnit)
+	http.HandleFunc("/static/", stewpot.CtrlStatic)
+	http.HandleFunc("/restart", stewpot.CtrlRestart)
+	http.HandleFunc("/graph", stewpot.CtrlGetNetworkGraph)
+	http.HandleFunc("/send_msg", stewpot.CtrlSendMsg)
+	http.HandleFunc("/time_unit", stewpot.CtrlGetTimeUnit)
 
 	port := "10000"
 	fmt.Println("---------Server Start!---------")

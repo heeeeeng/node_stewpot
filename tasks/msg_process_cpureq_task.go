@@ -23,6 +23,10 @@ func NewMsgProcessCPUReqTask(startTime int64, n types.Node, msg types.Message) *
 	}
 }
 
+/*
+Task interface implementations
+*/
+
 func (t *MsgProcessCPUReqTask) Process(tl types.Timeline) {
 	if !t.node.LockCpu() {
 		t.endTime = tl.NextTime()
@@ -58,4 +62,16 @@ func (t *MsgProcessCPUReqTask) MarshalJSON() ([]byte, error) {
 	j.Msg = t.msg.ID
 
 	return json.Marshal(j)
+}
+
+/*
+Own methods
+*/
+
+func (t *MsgProcessCPUReqTask) Node() types.Node {
+	return t.node
+}
+
+func (t *MsgProcessCPUReqTask) Msg() int64 {
+	return t.msg.ID
 }

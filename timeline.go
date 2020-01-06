@@ -16,11 +16,13 @@ type Timeline struct {
 
 	db *MemDB
 
+	importCallback func(types.Task)
+
 	mu    sync.RWMutex
 	close chan struct{}
 }
 
-func newTimeline(db *MemDB) *Timeline {
+func newTimeline(db *MemDB, callback func(task types.Task)) *Timeline {
 	t := &Timeline{}
 
 	t.timestamp = 0
@@ -29,6 +31,7 @@ func newTimeline(db *MemDB) *Timeline {
 	//t.next = newTimeUnit(t.timestamp + 1)
 	t.nextChan = make(chan *TimeUnit)
 	t.db = db
+	t.importCallback = callback
 
 	t.close = make(chan struct{})
 
@@ -47,20 +50,6 @@ func (tl *Timeline) CurrentTime() int64 { return tl.timestamp }
 
 func (tl *Timeline) NextTime() int64 { return tl.timestamp + 1 }
 
-//func (tl *Timeline) ImportCurrentTask(task Task) {
-//	tl.mu.Lock()
-//	defer tl.mu.Unlock()
-//
-//	tl.importTask(tl.CurrentTime(), task)
-//}
-//
-//func (tl *Timeline) ImportNextTask(task Task) {
-//	tl.mu.Lock()
-//	defer tl.mu.Unlock()
-//
-//	tl.importTask(tl.NextTime(), task)
-//}
-
 func (tl *Timeline) SendNewMsg(node *Node, msg types.Message) int64 {
 	tl.mu.Lock()
 	defer tl.mu.Unlock()
@@ -71,24 +60,22 @@ func (tl *Timeline) SendNewMsg(node *Node, msg types.Message) int64 {
 }
 
 func (tl *Timeline) ImportTask(startTime int64, task types.Task) {
+	go tl.importCallback(task)
+
 	if startTime != tl.timestamp && startTime != tl.timestamp+1 {
 		fmt.Println(fmt.Sprintf("appendTask not curr or next, task start time: %d, curr: %d", task.StartTime(), tl.current.timestamp))
 		return
 	}
 	if startTime == tl.timestamp {
-		//fmt.Println(fmt.Sprintf("appendTask at curr: %d, curr: %d", task.StartTime(), tl.current.timestamp))
 		tl.current.appendTask(task)
 		return
 	}
 	if startTime == tl.timestamp+1 {
-		//fmt.Println(fmt.Sprintf("appendTask at next: %d, curr: %d, task: %s", task.StartTime(), tl.current.timestamp, tasks.TaskType(task.Type()).String()))
 		if tl.next == nil {
-			//fmt.Println("next is nil")
 			tl.next = newTimeUnit(tl.timestamp + 1)
 			tl.next.appendTask(task)
 			go func() { tl.nextChan <- tl.next }()
 		} else {
-			//fmt.Println("append task: ", tasks.TaskType(task.Type()).String())
 			tl.next.appendTask(task)
 		}
 		return
@@ -112,7 +99,7 @@ func (tl *Timeline) loop() {
 			}
 			tl.next = nil
 
-			fmt.Println("start processing timestamp: ", tl.current.timestamp)
+			//fmt.Println("start processing timestamp: ", tl.current.timestamp)
 
 			for {
 				task := tl.current.nextTask()

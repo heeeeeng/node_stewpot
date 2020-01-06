@@ -27,14 +27,14 @@ type Node struct {
 }
 
 type Bandwidth struct {
-	Upload   types.FileSize
-	Download types.FileSize
+	Upload   int64
+	Download int64
 }
 
 type NodeConfig struct {
 	IP       string
-	Upload   types.FileSize
-	Download types.FileSize
+	Upload   int64
+	Download int64
 	MaxIn    int
 	MaxOut   int
 	MaxBest  int
@@ -74,11 +74,11 @@ func (n *Node) Perf() int {
 	return n.perf
 }
 
-func (n *Node) Bandwidth() types.FileSize {
+func (n *Node) Bandwidth() int64 {
 	return n.bandwidth.Upload
 }
 
-func (n *Node) BandwidthInMillisecond() types.FileSize {
+func (n *Node) BandwidthInMillisecond() int64 {
 	return n.bandwidth.Upload / 1000
 }
 

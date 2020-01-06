@@ -39,7 +39,7 @@ func (t *BroadcastTask) Process(tl types.Timeline) {
 	}
 
 	// calculate bandwidth usage time.
-	totalMsgSize := t.msg.Size.ToInt64() * int64(len(destinations))
+	totalMsgSize := t.msg.Size * int64(len(destinations))
 	bandwidthTimeUsage := totalMsgSize / int64(n.BandwidthInMillisecond())
 
 	for _, dest := range destinations {
