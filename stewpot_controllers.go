@@ -15,6 +15,12 @@ func (s *Stewpot) MainPage(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, "hello!")
 }
 
+func (s *Stewpot) SimPage(w http.ResponseWriter, r *http.Request) {
+	t, _ := template.ParseFiles("./static/multi_simulate.html")
+	t.Execute(w, "hello!")
+
+}
+
 func (s *Stewpot) CtrlStatic(w http.ResponseWriter, r *http.Request) {
 	fs := http.FileServer(http.Dir("./"))
 	fs.ServeHTTP(w, r)
@@ -37,7 +43,7 @@ func (s *Stewpot) CtrlRestart(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	maxBest := 3
+	maxBest := 4
 
 	s.RestartNetwork(nodeNum, maxIn, maxOut, maxBest, int64(bandwidth), nil)
 }
@@ -82,8 +88,17 @@ func (s *Stewpot) MarshalNodes() []byte {
 }
 
 func (s *Stewpot) CtrlSendMsg(w http.ResponseWriter, r *http.Request) {
+	var size int64
+	msgSize, err := urlParamToInt(r, "msg_size")
+	if err != nil {
+		fmt.Println("send msg param error: ", err)
+		size = types.DefualtMsgSize
+	} else {
+		size = int64(msgSize) * types.Byte
+	}
+
 	node := s.nodes[rand.Intn(len(s.nodes))]
-	msg := s.GenerateMsg(types.DefualtMsgSize)
+	msg := s.GenerateMsg(size)
 	timestamp := s.timeline.SendNewMsg(node, msg)
 	fmt.Println(timestamp)
 	w.Write([]byte(strconv.FormatInt(timestamp, 10)))
@@ -106,6 +121,80 @@ func (s *Stewpot) CtrlGetTimeUnit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data, _ := json.Marshal(timeUnit.tasks)
+	w.Write(data)
+}
+
+type MultiSimResp struct {
+	Xs []string `json:"xs"`
+	Ys []int64  `json:"ys"`
+}
+
+func (s *Stewpot) CtrlMultiSimulate(w http.ResponseWriter, r *http.Request) {
+	// load data
+	iterNum, err := urlParamToInt(r, "iter_num")
+	if err != nil {
+		fmt.Println("iter_num param error: ", err)
+		return
+	}
+	nodeNum, err := urlParamToInt(r, "node_num")
+	if err != nil {
+		fmt.Println("node_num param error: ", err)
+		return
+	}
+	maxIn, err := urlParamToInt(r, "max_in")
+	if err != nil {
+		fmt.Println("max_in param error: ", err)
+		return
+	}
+	maxOut, err := urlParamToInt(r, "max_out")
+	if err != nil {
+		fmt.Println("max_out param error: ", err)
+		return
+	}
+	bandwidth, err := urlParamToInt(r, "bandwidth")
+	if err != nil {
+		fmt.Println("bandwidth param error: ", err)
+		return
+	}
+	maxMsgSize, err := urlParamToInt(r, "max_msg_size")
+	if err != nil {
+		fmt.Println("max_msg_size param error: ", err)
+		return
+	}
+
+	// init config
+	conf := SimConfig{
+		IterNum:   iterNum,
+		NodeNum:   nodeNum,
+		Bandwidth: int64(bandwidth),
+		MaxIn:     maxIn,
+		MaxOut:    maxOut,
+	}
+
+	// simulate loop
+	var xs []string
+	var ys []int64
+	// TODO min msg size and enlarge number per iter should not be hard coded.
+	minMsgSize := 256 * types.Byte
+	sizeGap := 16 * types.KB
+	for i := minMsgSize; i < int64(maxMsgSize); i += sizeGap {
+		conf.MsgSize = i
+		avgTimeUsage := s.MultiSimulate(conf)
+
+		x := strconv.Itoa(int(i / types.Byte))
+		xs = append(xs, x)
+
+		ys = append(ys, avgTimeUsage)
+
+		fmt.Println(fmt.Sprintf("x: %d KB", i/types.KB))
+	}
+
+	// response
+	resp := MultiSimResp{
+		Xs: xs,
+		Ys: ys,
+	}
+	data, _ := json.Marshal(resp)
 	w.Write(data)
 }
 

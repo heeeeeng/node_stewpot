@@ -60,7 +60,9 @@ func (tl *Timeline) SendNewMsg(node *Node, msg types.Message) int64 {
 }
 
 func (tl *Timeline) ImportTask(startTime int64, task types.Task) {
-	go tl.importCallback(task)
+	if tl.importCallback != nil {
+		go tl.importCallback(task)
+	}
 
 	if startTime != tl.timestamp && startTime != tl.timestamp+1 {
 		fmt.Println(fmt.Sprintf("appendTask not curr or next, task start time: %d, curr: %d", task.StartTime(), tl.current.timestamp))

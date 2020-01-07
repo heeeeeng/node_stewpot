@@ -38,6 +38,9 @@ func main() {
 	http.HandleFunc("/send_msg", stewpot.CtrlSendMsg)
 	http.HandleFunc("/time_unit", stewpot.CtrlGetTimeUnit)
 
+	http.HandleFunc("/multi_sim", stewpot.SimPage)
+	http.HandleFunc("/multi_sim/simulate", stewpot.CtrlMultiSimulate)
+
 	port := "10000"
 	fmt.Println("---------Server Start!---------")
 	fmt.Println("Port: ", port)

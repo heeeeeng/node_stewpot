@@ -16,7 +16,7 @@ func TestStewpot_MultiSimulate(t *testing.T) {
 	stewpot.Start()
 
 	conf := SimConfig{
-		IterNum:   200,
+		IterNum:   20,
 		MsgSize:   256 * types.KB,
 		NodeNum:   100,
 		Bandwidth: 100 * types.MB,

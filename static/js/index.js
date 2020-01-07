@@ -20,7 +20,6 @@ function main() {
 
     intervalID = window.setInterval(internalFunc, 500);
 
-    // sendMsg();
 }
 
 function restart() {
@@ -48,16 +47,6 @@ function initChart() {
 
     myChart.showLoading();
     myChart.hideLoading();
-
-    // graph.nodes.forEach(function (node) {
-    //     node.itemStyle = null;
-    //     node.symbolSize = 10;
-    //     // node.value = node.symbolSize;
-    //     // node.category = node.attributes.modularity_class;
-    //     // Use random x, y
-    //     node.x = node.y = null;
-    //     node.draggable = true;
-    // });
 
     for (let i in graph.nodes) {
         let node = graph.nodes[i];
@@ -167,7 +156,7 @@ function switchToNoneLayout() {
     // node_0 = myChart.getModel().getSeriesByIndex(0).preservedPoints[graph.nodes[0].name];
     console.log("switched to none");
 
-    sendMsg();
+    // sendMsg();
 }
 
 let node_color_old = "red";
@@ -199,7 +188,6 @@ async function sendMsg() {
 }
 
 function getTimeUnit(t) {
-    console.log("t: ", t);
 
     let xmlHttp = new XMLHttpRequest();
     xmlHttp.open( "GET", "/time_unit?time=" + t, false ); // false for synchronous request
@@ -225,7 +213,7 @@ function getTimeUnit(t) {
         if (task.type === TASK_TYPE_MSG_TRANSMIT_DELAY) {
             let linkIndex = links[task.source][task.target];
             graph_links[linkIndex].lineStyle = {
-                color: "red",
+                color: node_color_new,
                 width: 2,
                 opacity: 0.3
             };
@@ -245,7 +233,7 @@ function highLightLink(source, target, base_links) {
     let link = base_links[linkIndex];
 
     link.lineStyle = {
-        color: "red"
+        color: node_color_new
     };
     base_links[linkIndex] = link;
     return base_links;

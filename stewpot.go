@@ -142,7 +142,7 @@ func (s *Stewpot) MultiSimulate(conf SimConfig) int64 {
 
 	totalTime := int64(0)
 	for i := 0; i < conf.IterNum; i++ {
-		fmt.Println(fmt.Sprintf("iter %d, totalTime: %d", i, totalTime))
+		//fmt.Println(fmt.Sprintf("iter %d, totalTime: %d", i, totalTime))
 		totalTime += s.simulate(conf.MsgSize, callbackChan)
 	}
 	return totalTime / int64(conf.IterNum)
