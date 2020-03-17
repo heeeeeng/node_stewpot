@@ -94,11 +94,11 @@ func (s *Stewpot) CtrlSendMsg(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("send msg param error: ", err)
 		size = types.DefualtMsgSize
 	} else {
-		size = int64(msgSize) * types.Byte
+		size = int64(msgSize) * types.SizeByte
 	}
 
 	node := s.nodes[rand.Intn(len(s.nodes))]
-	msg := s.GenerateMsg(size)
+	msg := s.GenerateMsg(1, size, "")
 	timestamp := s.timeline.SendNewMsg(node, msg)
 	fmt.Println(timestamp)
 	w.Write([]byte(strconv.FormatInt(timestamp, 10)))
@@ -175,18 +175,18 @@ func (s *Stewpot) CtrlMultiSimulate(w http.ResponseWriter, r *http.Request) {
 	var xs []string
 	var ys []int64
 	// TODO min msg size and enlarge number per iter should not be hard coded.
-	minMsgSize := 256 * types.Byte
-	sizeGap := 16 * types.KB
+	minMsgSize := 256 * types.SizeByte
+	sizeGap := 16 * types.SizeKB
 	for i := minMsgSize; i < int64(maxMsgSize); i += sizeGap {
 		conf.MsgSize = i
 		avgTimeUsage := s.MultiSimulate(conf)
 
-		x := strconv.Itoa(int(i / types.Byte))
+		x := strconv.Itoa(int(i / types.SizeByte))
 		xs = append(xs, x)
 
 		ys = append(ys, avgTimeUsage)
 
-		fmt.Println(fmt.Sprintf("x: %d KB", i/types.KB))
+		fmt.Println(fmt.Sprintf("x: %d SizeKB", i/types.SizeKB))
 	}
 
 	// response
@@ -208,4 +208,12 @@ func urlParamToInt(r *http.Request, key string) (int, error) {
 		return param, fmt.Errorf("cannot format key %s from string to int: %v", key, err)
 	}
 	return param, nil
+}
+
+func urlParamToString(r *http.Request, key string) (string, error) {
+	paramStr := r.URL.Query()[key]
+	if len(paramStr) == 0 {
+		return "", fmt.Errorf("cannot find parameter: %s", key)
+	}
+	return paramStr[0], nil
 }

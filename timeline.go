@@ -16,13 +16,14 @@ type Timeline struct {
 
 	db *MemDB
 
+	protocol       types.Protocol
 	importCallback func(types.Task)
 
 	mu    sync.RWMutex
 	close chan struct{}
 }
 
-func newTimeline(db *MemDB, callback func(task types.Task)) *Timeline {
+func newTimeline(db *MemDB, protocol types.Protocol, callback func(task types.Task)) *Timeline {
 	t := &Timeline{}
 
 	t.timestamp = 0
@@ -31,6 +32,7 @@ func newTimeline(db *MemDB, callback func(task types.Task)) *Timeline {
 	//t.next = newTimeUnit(t.timestamp + 1)
 	t.nextChan = make(chan *TimeUnit)
 	t.db = db
+	t.protocol = protocol
 	t.importCallback = callback
 
 	t.close = make(chan struct{})
@@ -50,7 +52,9 @@ func (tl *Timeline) CurrentTime() int64 { return tl.timestamp }
 
 func (tl *Timeline) NextTime() int64 { return tl.timestamp + 1 }
 
-func (tl *Timeline) SendNewMsg(node *Node, msg types.Message) int64 {
+func (tl *Timeline) Protocol() types.Protocol { return tl.protocol }
+
+func (tl *Timeline) SendNewMsg(node types.Node, msg types.Message) int64 {
 	tl.mu.Lock()
 	defer tl.mu.Unlock()
 

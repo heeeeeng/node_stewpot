@@ -7,9 +7,9 @@ package types
 //}
 
 const (
-	Bit  = int64(1)
-	Byte = 8 * Bit
-	KB   = 1024 * Byte
-	MB   = 1024 * KB
-	GB   = 1024 * MB
+	SizeBit  = int64(1)
+	SizeByte = 8 * SizeBit
+	SizeKB   = 1024 * SizeByte
+	SizeMB   = 1024 * SizeKB
+	SizeGB   = 1024 * SizeMB
 )

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/heeeeeng/node_stewpot/protocols"
 	"github.com/heeeeeng/node_stewpot/tasks"
 	"github.com/heeeeeng/node_stewpot/types"
 	"math/rand"
@@ -15,15 +16,12 @@ type Stewpot struct {
 	bootstrap *Node
 	nodes     []*Node
 	timeline  *Timeline
+	protocol  types.Protocol
 }
 
 func NewStewpot() *Stewpot {
-	db := newMemDB()
-	timeline := newTimeline(db, nil)
-
 	s := &Stewpot{}
 	s.msg = 1
-	s.timeline = timeline
 
 	return s
 }
@@ -32,7 +30,7 @@ func (s *Stewpot) RestartNetwork(nodeNum, maxIn, maxOut, maxBest int, bandwidth 
 	s.Stop()
 
 	db := newMemDB()
-	timeline := newTimeline(db, callback)
+	timeline := newTimeline(db, s.protocol, callback)
 
 	s.msg = 1
 	s.timeline = timeline
@@ -68,9 +66,14 @@ func (s *Stewpot) InitNetwork(nodeNum, maxIn, maxOut, maxBest int, bandwidth int
 		node.TryConnect(s.bootstrap)
 		s.nodes = append(s.nodes, node)
 	}
+
+	s.protocol = protocols.NewFakeProtocol()
+
+	db := newMemDB()
+	s.timeline = newTimeline(db, s.protocol, nil)
 }
 
-// Stew start the simulating of the nodes network.
+// Starts the simulating of the nodes network.
 func (s *Stewpot) Start() {
 	s.timeline.Start()
 }
@@ -85,18 +88,19 @@ func (s *Stewpot) PrintOutNodes() {
 	}
 }
 
-func (s *Stewpot) GenerateMsg(msgSize int64) types.Message {
+// generate a new message without source node.
+func (s *Stewpot) GenerateMsg(difficulty int64, msgSize int64, content string) types.Message {
 	s.msgLocker.Lock()
 	defer s.msgLocker.Unlock()
 
-	msg := types.NewMessage(nil, 1, s.msg, msgSize)
+	msg := types.NewMessage(nil, difficulty, s.msg, msgSize, content)
 	s.msg++
 
 	return msg
 }
 
-func (s *Stewpot) SendNewMsg() {
-	msg := s.GenerateMsg(types.DefualtMsgSize)
+func (s *Stewpot) SendNewMsg(content string) {
+	msg := s.GenerateMsg(1*types.SizeBit, types.DefualtMsgSize, content)
 	s.SendMsg(msg)
 }
 
@@ -105,6 +109,11 @@ func (s *Stewpot) SendMsg(msg types.Message) int64 {
 	timestamp := s.timeline.SendNewMsg(node, msg)
 	//fmt.Println("send msg at time: ", timestamp)
 	return timestamp
+}
+
+func (s *Stewpot) MsgProducer(src types.Node, difficulty int64, size int64, content string) {
+	msg := s.GenerateMsg(difficulty, size, content)
+	s.timeline.SendNewMsg(src, msg)
 }
 
 type SimConfig struct {
@@ -154,7 +163,7 @@ func (s *Stewpot) simulate(msgSize int64, cbChan chan cbData) int64 {
 		nodes[node.IP()] = struct{}{}
 	}
 
-	msg := s.GenerateMsg(msgSize)
+	msg := s.GenerateMsg(1*types.SizeBit, msgSize, "")
 	startTime := s.SendMsg(msg)
 	endTime := int64(0)
 

@@ -14,7 +14,7 @@ type MsgProcessCalcTask struct {
 }
 
 func NewMsgProcessCalcTask(startTime int64, n types.Node, msg types.Message) *MsgProcessCalcTask {
-	timeUsage := int64(msg.Difficulty / n.Perf())
+	timeUsage := msg.Difficulty / int64(n.Perf())
 	endTime := startTime + timeUsage
 
 	return &MsgProcessCalcTask{
@@ -31,6 +31,9 @@ func (t *MsgProcessCalcTask) Process(tl types.Timeline) {
 		tl.ImportTask(tl.NextTime(), t)
 		return
 	}
+
+	// dial protocal to consume message
+	tl.Protocol().ConsumeMsg(t.node, t.msg.Content)
 
 	t.node.ReleaseCpu()
 	t.node.StoreMsg(t.msg)
