@@ -1,5 +1,14 @@
 package types
 
+//type StewpotInterface interface {
+//	Nodes() map[string]Node
+//	GenerateMsg(difficulty int64, msgSize int64, content string) Message
+//	SendMsg(source Node, msg Message) int64
+//	GetTimeUnitTasks(t int64) []Task
+//	MarshalNodes() []byte
+//	RestartNetwork(nodeNum, maxIn, maxOut, maxBest int, bandwidth int64, callback func(task Task))
+//}
+
 type Timeline interface {
 	CurrentTime() int64
 	NextTime() int64
@@ -29,6 +38,7 @@ type Node interface {
 	LockCpu() bool
 	ReleaseCpu()
 	ConnectIn(remoteNode Node) (bool, []Node)
+	String() string
 }
 
 type Peer interface {

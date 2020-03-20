@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/heeeeeng/node_stewpot/api"
+	"github.com/heeeeeng/node_stewpot/stewpot"
 	"github.com/heeeeeng/node_stewpot/types"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -14,7 +16,7 @@ import (
 	"time"
 )
 
-var recorder Recorder
+var recorder stewpot.Recorder
 
 func main() {
 	readConfig()
@@ -22,7 +24,7 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	stewpot := NewStewpot()
+	stewpot := stewpot.NewStewpot()
 	stewpot.InitNetwork(200, 8, 4, 3, 100*types.SizeMB)
 	stewpot.Start()
 
@@ -31,15 +33,8 @@ func main() {
 	//time.Sleep(time.Second * 1000)
 
 	// server
-	http.HandleFunc("/", stewpot.MainPage)
-	http.HandleFunc("/static/", stewpot.CtrlStatic)
-	http.HandleFunc("/restart", stewpot.CtrlRestart)
-	http.HandleFunc("/graph", stewpot.CtrlGetNetworkGraph)
-	http.HandleFunc("/send_msg", stewpot.CtrlSendMsg)
-	http.HandleFunc("/time_unit", stewpot.CtrlGetTimeUnit)
-
-	http.HandleFunc("/multi_sim", stewpot.SimPage)
-	http.HandleFunc("/multi_sim/simulate", stewpot.CtrlMultiSimulate)
+	controller := api.NewSewpotController(stewpot)
+	controller.RegisterRouters()
 
 	port := "10000"
 	fmt.Println("---------Server Start!---------")
