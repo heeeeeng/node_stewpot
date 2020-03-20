@@ -1,6 +1,7 @@
 package stewpot
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/heeeeeng/node_stewpot/types"
 	"strings"
@@ -203,6 +204,32 @@ func (n *Node) String() string {
 		neighbors = append(neighbors, neighborInfo)
 	}
 	return fmt.Sprintf("{ ip: %s, neighbors: %s }", n.ip, strings.Join(neighbors, ", "))
+}
+
+type NodeStatusJson struct {
+	NodeID      string   `json:"node_id"`
+	Peers       []string `json:"peers"`
+	Location    string   `json:"location"`
+	Performance int      `json:"performance"`
+	MsgCold     int64    `json:"msg_cold"`
+	MsgHot      []bool   `json:"msg_hot"`
+}
+
+func (n *Node) MarshalJSON() ([]byte, error) {
+	var peers []string
+	for _, p := range n.Peers() {
+		peers = append(peers, p.RemoteIP())
+	}
+
+	nodeJson := NodeStatusJson{}
+	nodeJson.NodeID = n.ip
+	nodeJson.Peers = peers
+	nodeJson.Location = n.location.Name
+	nodeJson.Performance = n.perf
+	nodeJson.MsgCold = n.db.coldData
+	nodeJson.MsgHot = n.db.hotData
+
+	return json.Marshal(nodeJson)
 }
 
 type nodePeers struct {

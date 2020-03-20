@@ -231,6 +231,21 @@ func (c *StewpotController) GetMessage(w http.ResponseWriter, r *http.Request) {
 	Response(w, msg)
 }
 
+func (c *StewpotController) GetNodeStatus(w http.ResponseWriter, r *http.Request) {
+	nodeID, err := urlParamToString(r, "node_id")
+	if err != nil {
+		ErrorResponse(w, err.Error())
+		return
+	}
+
+	node := c.stewpot.GetNode(nodeID)
+	if node == nil {
+		ErrorResponse(w, fmt.Sprintf("can't find node: %s", nodeID))
+		return
+	}
+	Response(w, node)
+}
+
 func urlParamToInt(r *http.Request, key string) (int, error) {
 	paramStr := r.URL.Query()[key]
 	if len(paramStr) == 0 {

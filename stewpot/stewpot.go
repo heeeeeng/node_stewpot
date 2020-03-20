@@ -131,6 +131,10 @@ func (s *Stewpot) GetTimeUnitTasks(t int64) []types.Task {
 	return timeUnit.tasks
 }
 
+func (s *Stewpot) GetNode(nodeID string) types.Node {
+	return s.nodes.Get(nodeID)
+}
+
 func (s *Stewpot) MsgProducer(src types.Node, difficulty int64, size int64, content string) {
 	msg := s.GenerateMsg(difficulty, size, content)
 	s.timeline.SendNewMsg(src, msg)

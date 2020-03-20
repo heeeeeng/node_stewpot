@@ -39,6 +39,7 @@ type Node interface {
 	ReleaseCpu()
 	ConnectIn(remoteNode Node) (bool, []Node)
 	String() string
+	MarshalJSON() ([]byte, error)
 }
 
 type Peer interface {
